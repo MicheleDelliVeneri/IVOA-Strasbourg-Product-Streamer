@@ -24,7 +24,7 @@ A pragmatic extension of IVOA DataLink for dataset-level access
 
 <div class="mt-12 text-sm opacity-70">
 Michele Delli Veneri &nbsp;·&nbsp; SKA Observatory<br/>
-IVOA Interoperability Meeting — Strasbourg, May 2026
+IVOA Interoperability Meeting — Strasbourg, 7 - 12 June 2026
 </div>
 
 <div class="mt-10 mx-auto max-w-2xl border-l-4 border-sky-500 bg-sky-50/60 dark:bg-sky-900/20 pl-4 py-2 text-xs text-left">
@@ -32,7 +32,7 @@ IVOA Interoperability Meeting — Strasbourg, May 2026
 </div>
 
 <div class="abs-br m-6 text-xs opacity-60">
-SRCNet Data Management WG
+Distributed Services & Protocols WG
 </div>
 
 <!--
