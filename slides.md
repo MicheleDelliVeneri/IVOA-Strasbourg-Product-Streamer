@@ -177,42 +177,128 @@ layout: section
 
 ---
 
+# SRCNet Service Federation related to Datalink
+
+<div class="mt-2 text-sm">
+
+Global services hold the federation state and discovery surface. Each SRCNet node exposes local access to storage through its Product Streamer and StoRM RSE.
+
+</div>
+
+<div class="mt-4 border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-3">
+  <div class="text-xs font-semibold uppercase opacity-70 mb-2">Global SRCNet APIs and Services</div>
+  <div class="grid grid-cols-6 gap-2 text-xs">
+    <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">Indigo IAM<br/><span class="opacity-65">OIDC</span></div>
+    <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">TAP / ObsCore<br/><span class="opacity-65">discovery</span></div>
+    <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">Permission API<br/><span class="opacity-65">PAPI</span></div>
+    <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">Site Capabilities API<br/><span class="opacity-65">SCAPI</span></div>
+    <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">Data Management API<br/><span class="opacity-65">DMAPI</span></div>
+    <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">Rucio<br/><span class="opacity-65">data replication</span></div>
+  </div>
+</div>
+
+<div class="mt-5 grid grid-cols-3 gap-4 text-xs">
+  <div class="border-l-4 border-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/15 pl-3 py-3">
+    <div class="font-semibold mb-2">SRCNet Node A</div>
+    <div class="grid gap-2">
+      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">DataLink</div>
+      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">Product Streamer <span class="opacity-65">(PSAPI)</span></div>
+      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">StoRM WebDAV RSE<br/><span class="opacity-65">registered in Rucio</span></div>
+    </div>
+  </div>
+
+  <div class="border-l-4 border-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/15 pl-3 py-3">
+    <div class="font-semibold mb-2">SRCNet Node B</div>
+    <div class="grid gap-2">
+      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">DataLink</div>
+      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">Product Streamer <span class="opacity-65">(PSAPI)</span></div>
+      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">XrootD RSE<br/><span class="opacity-65">registered in Rucio</span></div>
+    </div>
+  </div>
+
+  <div class="border-l-4 border-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/15 pl-3 py-3">
+    <div class="font-semibold mb-2">SRCNet Node C</div>
+    <div class="grid gap-2">
+      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">DataLink</div>
+      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">Product Streamer <span class="opacity-65">(PSAPI)</span></div>
+      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">StoRM WebDAV RSE<br/><span class="opacity-65">registered in Rucio</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="mt-3 text-xs opacity-75">
+Every StoRM endpoint is a Rucio Storage Element (RSE); Rucio is the global catalogue that knows which RSE holds each file replica.
+</div>
+
+---
+
 # The SKAO stack around DataLink
 
-```mermaid {scale: 0.55}
+<div class="grid grid-cols-[1.35fr_0.65fr] gap-6 items-start">
+
+<div>
+
+```mermaid {scale: 0.50}
 flowchart TB
   C["VO client / Notebook"]
 
   subgraph GLOBAL ["Global SRCNet APIs"]
     direction LR
     IAM["SKA-IAM<br/>(OIDC)"]
-    PAPI["Permissions API<br/>(PAPI)"]
+    TAP["TAP / ObsCore"]
+    PAPI["Permission API<br/>(PAPI)"]
     SCAPI["Site Capabilities API<br/>(SCAPI)"]
+    DM["Data Management API<br/>(DMAPI)"]
+    R[("Rucio")]
   end
 
-  subgraph SRC ["SRC — local services"]
+  subgraph SRC ["SRCNet Node — local services"]
     direction LR
     DL["DataLink"]
-    DM["DMAPI"]
     PS["Product Streamer<br/>(PSAPI)"]
-    R[("Rucio")]
-    ST[("StoRM WebDAV RSE")]
+    ST[("StoRM WebDAV RSE<br/>Rucio RSE")]
   end
 
   C -- "token-exchange" --> IAM
-  C -- "GET /v1/links" --> DL
+  C -- "ADQL query" --> TAP
+  TAP -- "DataLink URL<br/>client follows" --> DL
+  DL -- "VOTable<br/>service descriptor" --> C
   C -- "POST /v1/data/product" --> PS
 
   DL -- "locate(scope, name)" --> DM
-  DM -- "resolve replicas" --> R
+  DM -- "resolve replicas<br/>on RSEs" --> R
   DM -- "co-located services" --> SCAPI
 
   PS -- "authorise route" --> PAPI
   PS -- "read file (chunks)" --> ST
   PS -- "TAR / raw stream" --> C
+
+  linkStyle 0,8 stroke:#7c3aed,stroke-width:2px
+  linkStyle 1,2,3 stroke:#0284c7,stroke-width:2px
+  linkStyle 4,9,10 stroke:#059669,stroke-width:2px
+  linkStyle 5,6,7 stroke:#f59e0b,stroke-width:2px
 ```
 
-DataLink is a **thin bridge**: it asks DMAPI to *locate* a DID, then formats the answer as a VOTable. PSAPI is the **streaming proxy**: it validates the caller's token audience with PAPI, then pulls bytes off the local RSE.
+<div class="mt-2 grid grid-cols-4 gap-2 text-[10px]">
+  <div class="border-l-4 border-violet-500 pl-2">Auth / Perm Flow</div>
+  <div class="border-l-4 border-sky-500 pl-2">Discovery</div>
+  <div class="border-l-4 border-amber-500 pl-2">Data Location</div>
+  <div class="border-l-4 border-emerald-500 pl-2">Data Transport</div>
+</div>
+
+</div>
+
+<div class="text-sm">
+
+**Local** means local to an SRCNet node.
+
+DataLink is a **thin bridge**: it asks the Data Management API (DMAPI) to *locate* a DID, then formats the answer as a VOTable.
+
+PSAPI is the **streaming proxy**: it validates the caller's token audience with PAPI, then pulls bytes off the node-local RSE.
+
+</div>
+
+</div>
 
 ---
 
