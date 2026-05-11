@@ -27,6 +27,10 @@ Michele Delli Veneri &nbsp;·&nbsp; SKA Observatory<br/>
 IVOA Interoperability Meeting — Strasbourg, May 2026
 </div>
 
+<div class="mt-10 mx-auto max-w-2xl border-l-4 border-sky-500 bg-sky-50/60 dark:bg-sky-900/20 pl-4 py-2 text-xs text-left">
+  Blocks with a <span class="text-sky-700 dark:text-sky-300 font-semibold">sky-blue accent</span> in the slides are taken directly from the IVOA DataLink 1.1 Recommendation — <a href="https://www.ivoa.net/documents/DataLink/" class="underline">ivoa.net/documents/DataLink/</a>.
+</div>
+
 <div class="abs-br m-6 text-xs opacity-60">
 SRCNet Data Management WG
 </div>
@@ -39,20 +43,13 @@ service. Open up discussion about whether the divergence is reasonable.
 -->
 
 ---
-layout: two-cols-header
----
 
 # Outline
-
-::left::
 
 - The problem: shipping SKA data products to scientists
 - IVOA DataLink in 90 seconds
 - SKAO DataLink: what we built
 - Where we diverge from the standard
-
-::right::
-
 - The Product Streamer (PSAPI)
 - End-to-end demo (auth challenge → TAR stream)
 - Open questions for the community
@@ -75,35 +72,43 @@ The data-product problem at SKA scale
 
 **SKAO will produce ~700 PB / year of science-ready data products.**
 
+A *dataset* in SKA is rarely a single file: depending on the product type it can hold **hundreds to thousands** of files — typically **FITS** images, weights, primary-beam and metadata sidecars, or **Measurement Set v2 (MSv2)** directory trees for visibilities.
+
 Products live across a federation of SKA Regional Centres (SRCs):
 
+- **Discovery** happens through a **TAP service** exposing the **ObsCore** data model — the query result already includes the DataLink URL for each row
 - Files are physically stored on **Rucio Storage Elements** (RSEs) — typically StoRM WebDAV
 - Identifiers are **Rucio DIDs** of the form `scope:name`
-- A *dataset* DID is a Rucio container whose constituents are *file* DIDs
-- Authentication is **OIDC** via SKA-IAM (token audiences gate every service)
-
 </div>
 
 <div>
 
-```mermaid {scale: 0.65}
-flowchart TB
-  C[Astronomer / Client]
-  D[DataLink service]
-  DM[Data Management API]
-  R[(Rucio)]
-  S[(StoRM RSE)]
-  PS[Product Streamer]
-  C --GET /links?id=...--> D
-  D --locate--> DM
-  DM --resolve replicas--> R
-  D --VOTable--> C
-  C --POST products--> PS
-  PS --stream bytes--> S
-  S --bytes--> PS
-  PS --bytes / TAR--> C
-```
+```mermaid {scale: 0.42}
+%%{init: {"themeCSS": ".messageLine0:nth-of-type(1), .messageLine1:nth-of-type(1), .messageLine0:nth-of-type(2), .messageLine1:nth-of-type(2), .messageLine0:nth-of-type(3), .messageLine1:nth-of-type(3), .messageLine0:nth-of-type(4), .messageLine1:nth-of-type(4) { stroke: #0284c7 !important; stroke-width: 2px !important; } .messageLine0:nth-of-type(5), .messageLine1:nth-of-type(5), .messageLine0:nth-of-type(6), .messageLine1:nth-of-type(6), .messageLine0:nth-of-type(7), .messageLine1:nth-of-type(7), .messageLine0:nth-of-type(8), .messageLine1:nth-of-type(8) { stroke: #059669 !important; stroke-width: 2px !important; }"}}%%
+sequenceDiagram
+  autonumber
+  participant C as Client
+  participant T as TAP / ObsCore
+  participant D as DataLink
+  participant PS as Product Streamer
+  participant ST as StoRM WebDAV RSE
 
+  Note over C,T: Discovery — IVOA / TAP / ObsCore
+  C->>T: ADQL query
+  T-->>C: DataLink URL
+
+  Note over C,D: Link resolution — IVOA DataLink
+  C->>D: GET /links?id=<dataset DID>
+  D-->>C: VOTable + service descriptor
+
+  Note over C,ST: Transport — SKAO Product Streamer
+  C->>PS: POST /product + Bearer token
+  PS->>ST: read file DIDs
+  ST-->>PS: byte chunks
+  PS-->>C: TAR / raw byte stream
+```
+- A *dataset* DID is a Rucio container whose constituents are *file* DIDs
+- Authentication is **OIDC** via SKA-IAM (token audiences gate every service)
 </div>
 </div>
 
@@ -134,65 +139,33 @@ layout: section
 
 # The `{links}` endpoint
 
-<div class="grid grid-cols-2 gap-8 text-sm">
+<div class="border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-2 text-sm">
 
-<div>
-
-A DALI-sync resource. The client sends one or more **ID** values; the service responds with a **VOTable** of links.
+A DALI-sync resource. The client sends one or more **ID** values; the service responds with a **VOTable** of links. Mandatory parameters: `ID` (one or more identifiers) and `RESPONSEFORMAT` (a no-op for `votable`).
 
 ```
-GET {base}/links?ID=<dataset-id>
-   → application/x-votable+xml;content=datalink
+GET {base}/links?ID=<dataset-id>   →   application/x-votable+xml;content=datalink
 ```
 
-**Mandatory parameters**
-
-- `ID` — one or more identifiers
-- `RESPONSEFORMAT` — supported as a no-op for `votable`
-
-Each row in the response has **one of** `access_url`, `service_def`, or `error_message`.
+Each row in the response has **exactly one of** `access_url`, `service_def`, or `error_message`.
 
 </div>
 
-<div>
+<div class="mt-2 border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-2 text-xs">
 
-**Required columns** (Table 1, §3.2)
+**Required columns** (DataLink spec, Table 1):
 
-| column | purpose |
-|---|---|
-| `ID` | input identifier |
-| `access_url` | URL to data or service |
-| `service_def` | ref to a `<RESOURCE>` |
-| `error_message` | when no URL can be built |
-| `semantics` | term from a vocabulary |
-| `description` | human-readable label |
-| `content_type` | MIME type |
-| `content_length` | bytes |
-
-`semantics` values like `#this`, `#preview`, `#progenitor`, `#cutout` come from <br/>`http://www.ivoa.net/rdf/datalink/core`.
+| `ID` | `access_url` | `service_def` | `error_message` | `semantics` | `description` | `content_type` | `content_length` |
+|---|---|---|---|---|---|---|---|
+| input identifier | URL to data or service | ref to a `<RESOURCE>` | when no URL can be built | term from a vocabulary | human-readable label | MIME type | bytes |
 
 </div>
+
+<div class="mt-2 border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-2 text-xs">
+
+`semantics` values like `#this`, `#preview`, `#progenitor`, `#cutout` come from the core DataLink vocabulary at `http://www.ivoa.net/rdf/datalink/core`.
+
 </div>
-
----
-
-# Service descriptors (§4)
-
-A `RESOURCE type="meta" utype="adhoc:service"` block describes **how to invoke a related service** — its `accessURL`, optional `standardID`, and the `<GROUP name="inputParams">` block.
-
-```xml {all|2-4|5-9}
-<RESOURCE type="meta" ID="soda-sync" utype="adhoc:service">
-  <PARAM name="accessURL"   value="https://example.org/soda"/>
-  <PARAM name="standardID"  value="ivo://ivoa.net/std/SODA#sync-1.0"/>
-  <GROUP name="inputParams">
-    <PARAM name="ID"     ucd="meta.id;meta.dataset" value="ivo://..."/>
-    <PARAM name="CIRCLE" ucd="obs.field" datatype="double" arraysize="3"/>
-    <PARAM name="BAND"   ucd="em.wl;stat.interval" datatype="double" arraysize="2"/>
-  </GROUP>
-</RESOURCE>
-```
-
-This is the **extension point** every DAL service uses to ship "what to do next" to the client without inventing new MIME types.
 
 ---
 layout: section
@@ -206,25 +179,40 @@ layout: section
 
 # The SKAO stack around DataLink
 
-```mermaid {scale: 0.78}
-flowchart LR
-  subgraph SRC ["SKA Regional Centre"]
-    DL["ska-src-dm-datalink<br/>FastAPI"]
-    DM["ska-src-dm-data-management-api<br/>(DMAPI)"]
-    PS["ska-src-dm-product-service<br/>(PSAPI)"]
-    SC["Site Capabilities API<br/>(SCAPI)"]
-    R["Rucio"]
-    ST["StoRM RSE"]
+```mermaid {scale: 0.55}
+flowchart TB
+  C["VO client / Notebook"]
+
+  subgraph GLOBAL ["Global SRCNet APIs"]
+    direction LR
+    IAM["SKA-IAM<br/>(OIDC)"]
+    PAPI["Permissions API<br/>(PAPI)"]
+    SCAPI["Site Capabilities API<br/>(SCAPI)"]
   end
-  C["VO client / Notebook"] --"GET /v1/links"--> DL
-  DL --"locate(scope, name)"--> DM
-  DM --"resolve"--> R
-  DM --"co-located services"--> SC
-  C --"POST /v1/data/product"--> PS
-  PS --"stream"--> ST
+
+  subgraph SRC ["SRC — local services"]
+    direction LR
+    DL["DataLink"]
+    DM["DMAPI"]
+    PS["Product Streamer<br/>(PSAPI)"]
+    R[("Rucio")]
+    ST[("StoRM WebDAV RSE")]
+  end
+
+  C -- "token-exchange" --> IAM
+  C -- "GET /v1/links" --> DL
+  C -- "POST /v1/data/product" --> PS
+
+  DL -- "locate(scope, name)" --> DM
+  DM -- "resolve replicas" --> R
+  DM -- "co-located services" --> SCAPI
+
+  PS -- "authorise route" --> PAPI
+  PS -- "read file (chunks)" --> ST
+  PS -- "TAR / raw stream" --> C
 ```
 
-DataLink is a **thin bridge**: it asks DMAPI to *locate* a DID, then formats the answer as a VOTable.
+DataLink is a **thin bridge**: it asks DMAPI to *locate* a DID, then formats the answer as a VOTable. PSAPI is the **streaming proxy**: it validates the caller's token audience with PAPI, then pulls bytes off the local RSE.
 
 ---
 
@@ -293,7 +281,13 @@ One round-trip; client can build the whole download payload.
 
 # What the dataset VOTable looks like
 
-```xml {all|3-13|15-20}
+<div class="text-sm">
+
+Each `#child` row carries a **per-file IVOA ID** whose query-string fragment is the path on storage — the client can derive every local path without a second call.
+
+</div>
+
+```xml {all|3-12|14-19}
 <VOTABLE ...>
   <RESOURCE type="results"><TABLE>
     <!-- one row per constituent file, all with semantics=#child -->
@@ -303,8 +297,7 @@ One round-trip; client can build the whole download payload.
       <TD/><TD/>
       <TD>#child</TD>
       <TD>Constituent file</TD>
-      <TD>application/octet-stream</TD>
-      <TD/><TD/>
+      <TD/><TD/><TD/>
     </TR>
     <!-- … #child rows for every other file in the dataset … -->
   </TABLE></RESOURCE>
@@ -312,13 +305,11 @@ One round-trip; client can build the whole download payload.
   <RESOURCE type="meta" ID="product-streamer" utype="adhoc:service">
     <PARAM name="accessURL" value="http://psapi-core:8080/v1/data/product"/>
     <GROUP name="inputParams">
-      <PARAM name="ID" ucd="meta.id;meta.dataset" value="ivo://...?<scope>/<name>"/>
+      <PARAM name="ID" value="ivo://...?<scope>/<name>"/>
     </GROUP>
   </RESOURCE>
 </VOTABLE>
 ```
-
-Each `#child` row carries a **per-file IVOA ID** whose query-string fragment is the path on storage — the client can derive every local path without a second call.
 
 ---
 
@@ -329,7 +320,7 @@ Each `#child` row carries a **per-file IVOA ID** whose query-string fragment is 
 - **Network economics.** SRCs are globally distributed; a 1500-file VLBI dataset over 200 ms RTT is ~5 min of pure latency at one-call-per-file.
 - **Atomic snapshot.** All children come from the *same* `locate` response, so replica selection and co-located services stay consistent for the whole dataset.
 - **Clients stay simple.** A notebook can parse one VOTable, build one POST body, and stream the whole product.
-- **`#child` is already in the core vocab** — we are using it in the spirit the spec describes (multiple files per dataset, §1.2.1), just at the *response* level rather than via recursion (§1.2.7).
+- **`#child` is already in the core vocab** — we are using it in the spirit the spec describes (the *multiple files per dataset* use case), just at the *response* level rather than via the *recursive DataLink* pattern.
 
 </v-clicks>
 
@@ -340,6 +331,85 @@ Each `#child` row carries a **per-file IVOA ID** whose query-string fragment is 
 </div>
 
 </v-click>
+
+---
+
+# So far so good — except for the bytes
+
+<div class="text-sm">
+
+Dataset-level DataLink saves us **N metadata roundtrips**. But the client now holds **hundreds to thousands of PFNs** and still has to fetch every file individually.
+
+</div>
+
+<div class="grid grid-cols-2 gap-8 mt-4 text-sm">
+
+<div class="p-4 border-l-4 border-red-400 bg-red-50/40 dark:bg-red-900/15">
+
+**Naïve download path**
+
+- One HTTPS `GET` per file against the StoRM RSE
+- Each request re-runs TLS handshake + auth lookup
+- Replica selection, retries, parallelism are the client's problem
+- 1500 files × 200 ms latency ≈ 5 min of pure overhead
+
+</div>
+
+<div class="p-4 border-l-4 border-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/15">
+
+**What we want**
+
+- Single authenticated request to a co-located service
+- Server-side streaming — bytes flow as the RSE is read
+- Multiple files packaged into one transport (TAR)
+- Replica selection stays on the server
+
+</div>
+
+</div>
+
+<div class="mt-4 text-sm">
+
+We need a way to *tell the client* — through the same DataLink response — **where to send this single bulk request**. That's exactly what an IVOA **service descriptor** is for.
+
+</div>
+
+---
+
+# Service descriptors
+
+<div class="border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-2 text-sm">
+
+A **service descriptor** is metadata that ships *inside* the VOTable to tell a client **how to invoke a related service**. It's a `<RESOURCE type="meta" utype="adhoc:service">` block. A row in the results table references it via `service_def="<resource-ID>"`.
+
+</div>
+
+<div class="mt-2 border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-2">
+
+```xml {all|1|2|3|4-8|5}
+<RESOURCE type="meta" ID="soda-sync" utype="adhoc:service">
+  <PARAM name="accessURL"   value="https://example.org/soda"/>
+  <PARAM name="standardID"  value="ivo://ivoa.net/std/SODA#sync-1.0"/>
+  <GROUP name="inputParams">
+    <PARAM name="ID"     ucd="meta.id;meta.dataset" value="ivo://..."/>
+    <PARAM name="CIRCLE" ucd="obs.field" datatype="double" arraysize="3"/>
+    <PARAM name="BAND"   ucd="em.wl;stat.interval" datatype="double" arraysize="2"/>
+  </GROUP>
+</RESOURCE>
+```
+
+</div>
+
+<div class="text-xs grid grid-cols-2 gap-x-8 gap-y-1 mt-3">
+  <div><b>1 · the resource block</b> — <code>utype="adhoc:service"</code> identifies it as a service descriptor; the <code>ID</code> is what <code>service_def</code> rows point at.</div>
+  <div><b>2 · accessURL</b> — the endpoint the client should hit.</div>
+  <div><b>3 · standardID (optional)</b> — declares the service implements an IVOA standard (here SODA-sync-1.0) so generic VO clients can reason about it.</div>
+  <div><b>4–8 · inputParams</b> — the parameters the service expects. The client substitutes values for each <code>PARAM</code> to build the actual call.</div>
+</div>
+
+<div class="text-xs mt-3 opacity-80">
+This is the <b>extension point</b> we use to advertise our transport service — the next slide.
+</div>
 
 ---
 
@@ -361,7 +431,7 @@ A non-standard service type, advertised as a co-located service from **SCAPI** (
 </RESOURCE>
 ```
 
-No `standardID` (it's a custom service), but the descriptor is plain DataLink §4: the client follows the `accessURL` and substitutes the `ID` it cares about.
+No `standardID` (it's a custom service), but the descriptor is a plain DataLink service descriptor: the client follows the `accessURL` and substitutes the `ID` it cares about.
 
 A `#product-stream` row in the results table cross-references this descriptor for clients that prefer to discover services through the table.
 
@@ -559,33 +629,34 @@ PAPI is the policy enforcement point: it owns route-level permissions and audien
 
 # Full sequence
 
-```mermaid {scale: 0.62}
+```mermaid {scale: 0.45}
 sequenceDiagram
   autonumber
-  participant C as Client / Notebook
-  participant IAM as SKA-IAM
+  participant C as Client
+  participant IAM
   participant DL as DataLink
   participant DM as DMAPI
   participant SC as SCAPI
+  participant PA as PAPI
   participant PS as PSAPI
-  participant ST as StoRM RSE
+  participant ST as StoRM
 
-  C->>IAM: token-exchange (audience=product-streamer-api)
+  C->>IAM: token-exchange (aud=psapi)
   IAM-->>C: access_token
-  C->>DL: GET /v1/links?id=<dataset DID>
-  DL->>DM: locate(scope, name, colocated=product_streamer)
-  DM->>SC: lookup co-located services for storage area
+  C->>DL: GET /v1/links?id=<dataset>
+  DL->>DM: locate(scope, name)
+  DM->>SC: co-located services?
   SC-->>DM: product_streamer URL
-  DM-->>DL: replicas[] + colocated_services[]
-  DL-->>C: VOTable (#child rows + product-streamer RESOURCE)
-  C->>PS: POST /v1/data/product (list of {did, path})<br/>Authorization: Bearer
-  PS->>PAPI: authorise_service_route(audience, route)
-  PAPI-->>PS: ok
-  loop for each product
-    PS->>ST: read file (async, chunked)
+  DM-->>DL: replicas[] + services[]
+  DL-->>C: VOTable
+  C->>PS: POST /v1/data/product + Bearer
+  PS->>PA: authorise route + audience
+  PA-->>PS: ok
+  loop each product
+    PS->>ST: read chunk
     ST-->>PS: bytes
   end
-  PS-->>C: TAR stream (or raw bytes)
+  PS-->>C: TAR / raw stream
 ```
 
 ---
@@ -602,7 +673,7 @@ For the DAL WG to chew on
 
 <v-clicks>
 
-- **Dataset-level DataLink.** Is "one dataset ID → many `#child` rows in one VOTable" a legitimate reading of the spec, or is the recursive-DataLink pattern (§1.2.7) the only blessed shape? The cost of recursion at SKA scale is real.
+- **Dataset-level DataLink.** Is "one dataset ID → many `#child` rows in one VOTable" a legitimate reading of the spec, or is the recursive-DataLink pattern (one DataLink response linking to another DataLink endpoint) the only blessed shape? The cost of recursion at SKA scale is real.
 - **Custom service descriptors.** `#product-stream` and a custom `accessURL` with a single `ID` input feels like the simplest possible service descriptor — but should we register a `standardID` for "give me bytes for this DID"?
 - **AuthVO `ivoa_bearer` + discovery URL.** Our 401 payload encodes the IAM discovery URL inline. Is that the convention people are converging on, or do you prefer registering the IAM as an SSO endpoint elsewhere?
 - **`link_auth` and `link_authorized`.** We don't emit these today. Worth adding given that all our PFNs need a token to download?
