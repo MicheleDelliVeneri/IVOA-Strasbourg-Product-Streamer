@@ -1,6 +1,6 @@
 # Abstract — IVOA Interoperability Meeting, Strasbourg (June 2026)
 
-**Session:** DSP / DAL
+**Session:** 	Distributed Services & Protocols
 
 **Title:** *The Auth Challenge Mechanism for SRCNet IVOA DataLink Integration through the Product Streamer*
 
