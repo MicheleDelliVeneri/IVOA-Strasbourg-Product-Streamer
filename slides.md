@@ -50,13 +50,14 @@ deliver bytes. Many-file dataset handling is a bonus appendix.
 
 # Outline
 
-- The problem: SKAO data is **token-gated**, generic VO clients are not
-- The IVOA **AuthVO** bearer challenge — the spec's bootstrap
-- IVOA DataLink + service descriptors as the discovery channel
-- Our SRCNet implementation: DataLink + **Product Streamer (PSAPI)**
-- End-to-end demo: from `401` to TAR stream
-- *Bonus*: scaling DataLink for SKAO datasets (hundreds–thousands of files)
-- Open questions for the community
+1. **The problem** — SKAO data is token-gated; generic VO clients (TOPCAT, Aladin, pyVO) are not
+2. **IVOA DataLink** in 90 seconds — `{links}` endpoint and service descriptors
+3. **Our SRCNet implementation** — DataLink + Product Streamer (PSAPI), and how PSAPI issues
+   - **Challenge #1** — AuthVO `ivoa_bearer` with `discovery_url` (no token)
+   - **Challenge #2** — AuthVO `ivoa_bearer` with `exchange_url` (wrong audience)
+4. **Scaling** DataLink for SKAO datasets — hundreds-to-thousands of files in one VOTable
+5. **End-to-end demo** — cold-start client to TAR stream
+6. **Open questions** for the community
 
 ---
 layout: section
@@ -74,37 +75,42 @@ Every SKAO byte sits behind an SRCNet IAM token
 
 <div>
 
-Every API in the SRCNet federation is locked behind **OIDC** authentication delivered by **SKA-IAM** (an Indigo IAM instance). There is no anonymous read path to SKAO products.
+Every API in the SRCNet federation is locked behind **OIDC** authentication delivered by **SKA-IAM**. There is no anonymous read path to SKAO products.
 
 - **Authentication** is via short-lived OAuth2 access tokens
-- **Authorisation** is per-service: a single user token must be **exchanged** for the service's audience (e.g. `product-streamer-api`, `data-management-api`) before it is accepted
-- The **audience boundary** is the trust boundary — DataLink, DMAPI, PAPI and PSAPI all check it
-- Storage Elements (StoRM WebDAV) only release bytes against a *scoped* RSE token issued downstream
+- **Authorisation** is per-service: a user token must be **exchanged** for the service's audience (e.g. `product-streamer-api`) before it is accepted
+- The **audience boundary** is the trust boundary — DataLink, DMAPI, PAPI, AAPI and PSAPI all check it
 
-**Generic VO clients (TOPCAT, Aladin, pyVO) have no built-in knowledge of SKA-IAM.** They need a way to *discover* where to authenticate from the response of the very first call that fails.
+Generic VO clients (TOPCAT, Aladin, pyVO) have no built-in knowledge of SKA-IAM. PSAPI bootstraps them with **two consecutive challenges**:
+
+1. **AuthVO challenge** — no token → 401 carrying `discovery_url`
+2. **Audience challenge** — wrong audience → 401 carrying `exchange_url`
 
 </div>
 
 <div>
 
-```mermaid {scale: 0.55}
-flowchart LR
-  C["VO client<br/>(no token)"]
-  IAM["SKA-IAM<br/>(OIDC)"]
-  any["Any SRCNet API<br/>(DataLink, DMAPI,<br/>PSAPI, …)"]
-  C -- "1 · request" --> any
-  any -- "2 · 401 + challenge" --> C
-  C -. "3 · discover well-known" .-> IAM
-  IAM -. "4 · token exchange" .-> C
-  C -- "5 · retry + Bearer" --> any
-  linkStyle 0 stroke:#ef4444,stroke-width:2px
-  linkStyle 1 stroke:#ef4444,stroke-width:2px
-  linkStyle 2 stroke:#0284c7,stroke-width:2px,stroke-dasharray:4 3
-  linkStyle 3 stroke:#0284c7,stroke-width:2px,stroke-dasharray:4 3
-  linkStyle 4 stroke:#059669,stroke-width:2px
+```mermaid {scale: 0.4}
+sequenceDiagram
+  participant C as Client
+  participant PS as PSAPI
+  participant IAM as SKA-IAM
+  participant AAPI as AAPI
+  Note over C,PS: 1 · AuthVO challenge
+  C->>PS: POST (no token)
+  PS-->>C: 401 ivoa_bearer + discovery_url
+  Note over C,IAM: 2 · OIDC bootstrap
+  C->>IAM: GET discovery_url + DCR + device flow
+  IAM-->>C: raw IAM token
+  Note over C,AAPI: 3 · Audience challenge
+  C->>PS: POST (raw IAM token)
+  PS-->>C: 401 ivoa_bearer + exchange_url
+  C->>AAPI: GET exchange_url
+  AAPI-->>C: psapi-scoped token
+  Note over C,PS: 4 · Retry — success
+  C->>PS: POST + scoped Bearer
+  PS-->>C: data stream
 ```
-
-The first request **fails on purpose**. The body of that 401 is what bootstraps a naïve client into our realm.
 
 </div>
 </div>
@@ -125,7 +131,7 @@ WWW-Authenticate:
    ivoa_bearer
    error="invalid_request",
    error_description="Missing access token",
-   discovery_url="https://ska-iam.stfc.ac.uk/.well-known/openid-configuration"
+   discovery_url="https://iam.skao.org/.well-known/openid-configuration"
 ```
 
 <div class="text-sm mt-2">
@@ -156,7 +162,84 @@ The whole talk hangs on this challenge. <b>Where</b> in our stack does it live? 
 layout: section
 ---
 
-# 2 · IVOA DataLink, briefly
+# 2 . The SKA Data Problem 
+
+---
+
+# SKA datasets are not single files
+
+<div class="text-sm">
+
+**SKAO will produce ~700 PB / year of science-ready data products.**
+
+A *dataset* in SKA is rarely a single file: depending on the product type it can hold **hundreds to thousands** of files — typically **FITS** images, weights, primary-beam and metadata sidecars, or **Measurement Set v2 (MSv2)** directory trees for visibilities.
+
+- **Discovery** is via TAP / ObsCore — query result already includes the DataLink URL
+- Files are stored on **Rucio Storage Elements** (RSEs) — typically StoRM WebDAV
+- Identifiers are **Rucio DIDs** of the form `scope:name`
+- A *dataset* DID is a Rucio container whose constituents are *file* DIDs
+
+
+</div>
+
+---
+
+# What the dataset VOTable looks like
+
+<div class="text-sm">
+
+Each `#child` row carries a **per-file IVOA ID** whose query-string fragment is the path on storage — the client can derive every local path without a second call. <span class="opacity-70">↓ scroll inside the snippet</span>
+
+</div>
+
+<div class="mt-2 max-h-[400px] overflow-y-auto rounded border border-slate-300 dark:border-slate-700">
+
+```xml {all}
+<VOTABLE ...>
+  <RESOURCE type="results"><TABLE>
+    <!-- one row per constituent file, all with semantics=#child -->
+    <TR>
+      <TD>ivo://local.srcdev.skao.int?SKA-Mid.integration/02/ba/EB-E6E2BBFC.../test_0.fits</TD>
+      <TD>davs://storm2.local:8444/sa/.../test_0.fits</TD>
+      <TD/><TD/><TD>#child</TD><TD>Constituent file</TD><TD/><TD/><TD/>
+    </TR>
+    <TR>
+      <TD>ivo://local.srcdev.skao.int?SKA-Mid.integration/dd/13/EB-E6E2BBFC.../test_1.fits</TD>
+      <TD>davs://storm2.local:8444/sa/.../test_1.fits</TD>
+      <TD/><TD/><TD>#child</TD><TD>Constituent file</TD><TD/><TD/><TD/>
+    </TR>
+    <TR>
+      <TD>ivo://local.srcdev.skao.int?SKA-Mid.integration/0f/95/EB-E6E2BBFC.../test_2.fits</TD>
+      <TD>davs://storm2.local:8444/sa/.../test_2.fits</TD>
+      <TD/><TD/><TD>#child</TD><TD>Constituent file</TD><TD/><TD/><TD/>
+    </TR>
+    <TR>
+      <TD>ivo://local.srcdev.skao.int?SKA-Mid.integration/47/a2/EB-E6E2BBFC.../test_3.fits</TD>
+      <TD>davs://storm2.local:8444/sa/.../test_3.fits</TD>
+      <TD/><TD/><TD>#child</TD><TD>Constituent file</TD><TD/><TD/><TD/>
+    </TR>
+    <TR>
+      <TD>ivo://local.srcdev.skao.int?SKA-Mid.integration/91/8c/EB-E6E2BBFC.../test_4.fits</TD>
+      <TD>davs://storm2.local:8444/sa/.../test_4.fits</TD>
+      <TD/><TD/><TD>#child</TD><TD>Constituent file</TD><TD/><TD/><TD/>
+    </TR>
+    <!-- … one #child row per file (hundreds to thousands of rows for a real SKA dataset) … -->
+  </TABLE></RESOURCE>
+
+  <RESOURCE type="meta" ID="product-streamer" utype="adhoc:service">
+    <PARAM name="accessURL" value="http://psapi-core:8080/v1/data/product"/>
+    <GROUP name="inputParams">
+      <PARAM name="ID" value="ivo://...?<scope>/<name>"/>
+    </GROUP>
+  </RESOURCE>
+</VOTABLE>
+```
+
+</div>
+---
+layout: section
+---
+# 3 · IVOA DataLink, briefly
 
 `REC-DataLink-1.1` — 2023-12-15
 
@@ -204,7 +287,7 @@ A **service descriptor** is metadata that ships *inside* the VOTable to tell a c
 
 <div class="mt-2 border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-2">
 
-```xml {all|1|2|3|4-8|5}
+```xml {all|1|2|3|4-8}
 <RESOURCE type="meta" ID="soda-sync" utype="adhoc:service">
   <PARAM name="accessURL"   value="https://example.org/soda"/>
   <PARAM name="standardID"  value="ivo://ivoa.net/std/SODA#sync-1.0"/>
@@ -233,7 +316,7 @@ This is the <b>extension point</b> we use to advertise our auth-bearing transpor
 layout: section
 ---
 
-# 3 · The SRCNet implementation
+# 4 · The SRCNet implementation
 
 How DataLink hands a VO client off to the auth challenge
 
@@ -300,63 +383,36 @@ Every StoRM endpoint is a Rucio Storage Element (RSE); Rucio is the global catal
 
 <div>
 
-```mermaid {scale: 0.50}
-flowchart TB
-  C["VO client / Notebook"]
+```mermaid {scale: 0.42}
+sequenceDiagram
+  participant C as Client
+  participant T as TAP / ObsCore
+  participant D as DataLink
+  participant PS as Product Streamer
+  participant ST as StoRM WebDAV RSE
 
-  subgraph GLOBAL ["Global SRCNet APIs"]
-    direction LR
-    IAM["SKA-IAM<br/>(OIDC)"]
-    TAP["TAP / ObsCore"]
-    PAPI["Permission API<br/>(PAPI)"]
-    SCAPI["Site Capabilities API<br/>(SCAPI)"]
-    DM["Data Management API<br/>(DMAPI)"]
-    R[("Rucio")]
-  end
+  Note over C,T: Discovery — IVOA / TAP / ObsCore
+  C->>T: ADQL query
+  T-->>C: DataLink URL
 
-  subgraph SRC ["SRCNet Node — local services"]
-    direction LR
-    DL["DataLink"]
-    PS["Product Streamer<br/>(PSAPI)"]
-    ST[("StoRM WebDAV RSE<br/>Rucio RSE")]
-  end
+  Note over C,D: Link resolution — IVOA DataLink
+  C->>D: GET /links?id=<dataset DID>
+  D-->>C: VOTable + service descriptor
 
-  C -- "token-exchange" --> IAM
-  C -- "ADQL query" --> TAP
-  TAP -- "DataLink URL<br/>client follows" --> DL
-  DL -- "VOTable<br/>service descriptor" --> C
-  C -- "POST /v1/data/product" --> PS
-
-  DL -- "locate(scope, name)" --> DM
-  DM -- "resolve replicas<br/>on RSEs" --> R
-  DM -- "co-located services" --> SCAPI
-
-  PS -- "authorise route" --> PAPI
-  PS -- "read file (chunks)" --> ST
-  PS -- "TAR / raw stream" --> C
-
-  linkStyle 0,8 stroke:#7c3aed,stroke-width:2px
-  linkStyle 1,2,3 stroke:#0284c7,stroke-width:2px
-  linkStyle 4,9,10 stroke:#059669,stroke-width:2px
-  linkStyle 5,6,7 stroke:#f59e0b,stroke-width:2px
+  Note over C,ST: Transport — SKAO Product Streamer
+  C->>PS: POST /product + Bearer token
+  PS->>ST: read file DIDs
+  ST-->>PS: byte chunks
+  PS-->>C: TAR / raw byte stream
 ```
-
-<div class="mt-2 grid grid-cols-4 gap-2 text-[10px]">
-  <div class="border-l-4 border-violet-500 pl-2">Auth / Perm Flow</div>
-  <div class="border-l-4 border-sky-500 pl-2">Discovery</div>
-  <div class="border-l-4 border-amber-500 pl-2">Data Location</div>
-  <div class="border-l-4 border-emerald-500 pl-2">Data Transport</div>
-</div>
 
 </div>
 
 <div class="text-sm">
 
-**Local** means local to an SRCNet node.
+DataLink is a **thin bridge**: DMAPI returns the file locations on the RSEs federated through Rucio; DataLink formats the answer as a VOTable, and embeds the co-located Product Streamer as an `adhoc:service` descriptor (looked up via SCAPI).
 
-DataLink is a **thin bridge**: it asks DMAPI to *locate* a DID, then formats the answer as a VOTable.
-
-PSAPI is the **streaming proxy**: it validates the caller's token audience with PAPI, then pulls bytes off the node-local RSE — **this is the box that issues the AuthVO challenge.**
+PSAPI is the **streaming proxy**: it issues the two AuthVO challenges, validates the caller's token audience with PAPI/AAPI, then pulls bytes off the node-local RSE.
 
 </div>
 
@@ -421,7 +477,7 @@ layout: section
 
 # 4 · The Product Streamer
 
-`ska-src-dm-product-service` — the auth-challenge bearer
+`ska-src-dm-product-service` — the auth-challenge bearer and files streamer
 
 ---
 
@@ -434,15 +490,16 @@ layout: section
 A **streaming proxy** in front of the StoRM RSE filesystem.
 
 - Single `POST /v1/data/product` route
-- Body: a list of `{did, path}` items
-- One item, file path → raw bytes (with `Range` support, `206 Partial Content`)
-- Multiple items (or directory) → **uncompressed TAR stream** (`application/x-tar`)
-- No buffering on disk, no intermediate compression
+- **Body parsed by `Content-Type`**:
+  - `application/xml` / `text/xml` → raw **VOTable** from DataLink — paths derived internally, no client-side XML parsing required
+  - `application/json` → list of `{did, path}` objects
+- One file → raw bytes (`Range` / `206 Partial Content` supported)
+- Multiple files → **uncompressed TAR stream** (`application/x-tar`), built on the fly
 
-The route is gated by **two** independent auth checks:
+The route is gated by **two** independent challenges:
 
-1. **Token presence** — directly in the handler, returns IVOA AuthVO `ivoa_bearer` 401
-2. **Audience + permission** — delegated to PAPI
+1. **No token** → `MissingToken` → 401 with `discovery_url`
+2. **Wrong audience** → `InvalidTokenAudience` → 401 with `exchange_url`
 
 </div>
 
@@ -450,18 +507,23 @@ The route is gated by **two** independent auth checks:
 
 ```python
 @product_router.post("/data/product")
-async def post_product(
-    request: Request,
-    products: list[ProductDID],
-):
+@handle_exceptions
+async def post_product(request: Request):
     caller_token = request.headers.get("authorization", "")\
         .removeprefix("Bearer ").strip()
     if not caller_token:
-        raise MissingToken()           # 401 IVOA AuthVO
+        raise MissingToken()  # 1st challenge: discovery_url
+
+    # parse body — VOTable XML or JSON, sniffed from Content-Type
+    ct = request.headers.get("content-type", "application/json")\
+        .split(";")[0].strip().lower()
+    products = _parse_products(ct, await request.body())
 
     safe_paths = [_resolve_safe_path(p.path) for p in products]
     if len(safe_paths) == 1 and os.path.isfile(safe_paths[0]):
-        return StreamingResponse(_stream_file(...))
+        return _single_file_response(
+            safe_paths[0], request.headers.get("Range"))
+
     return StreamingResponse(
         _stream_tar_archive(safe_paths),
         media_type="application/x-tar",
@@ -471,89 +533,97 @@ async def post_product(
 </div>
 </div>
 
+
 ---
 
-# The AuthVO challenge in PSAPI
+# Challenge #1 · AuthVO — no token
 
-When the caller forgets to send a token, PSAPI replies **401** with the IVOA AuthVO bearer challenge:
+When the caller sends **no `Authorization` header**, PSAPI raises `MissingToken` and replies **401** with the IVOA AuthVO bearer challenge carrying a **`discovery_url`**:
 
-```http {all|1|3-6|5}
+```http {all}
 HTTP/1.1 401 Unauthorized
 Content-Type: application/json
 
 { "detail": "Unauthorized WWW-Authenticate: ivoa_bearer
    error=\"invalid_request\",
    error_description=\"Missing access token\",
-   discovery_url=\"https://ska-iam.stfc.ac.uk/.well-known/openid-configuration\"" }
+   discovery_url=\"https://iam.skao.org/.well-known/openid-configuration\"" }
 ```
 
-The **`discovery_url`** is the whole point: a generic VO client that has never heard of SKA-IAM can follow it, fetch the OIDC well-known document, run a client-credentials (or token-exchange) grant for the **`product-streamer-api`** audience, and retry the same request with a valid Bearer.
+A generic VO client that has never heard of SKA-IAM follows the `discovery_url`, fetches the OIDC well-known document, and uses it to learn:
 
-A second `401` is raised by the **Permissions API** (PAPI) if the token *is* present but its audience doesn't match — that's the route-level authorisation check, not just a presence check.
+- `registration_endpoint` &nbsp;→&nbsp; **Dynamic Client Registration** (RFC 7591) to self-register a public client
+- `device_authorization_endpoint` &nbsp;→&nbsp; **device flow** for interactive user authorisation
+- `token_endpoint` &nbsp;→&nbsp; poll for the issued access token
+
+At the end of step 1 the client holds a **raw IAM token** — but the audience is generic, not yet scoped to PSAPI.
+
+---
+
+# Challenge #2 · Audience — wrong-audience token
+
+The client retries the POST with its raw IAM token. PSAPI delegates the audience check to **PAPI**; on mismatch it raises `InvalidTokenAudience` and replies **401** with a *second* IVOA AuthVO challenge — this time carrying an **`exchange_url`**:
+
+```http {all}
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json
+
+{ "detail": "Unauthorized WWW-Authenticate: ivoa_bearer
+   error=\"invalid_token\",
+   error_description=\"Token audience is incorrect — exchange for the required service token\",
+   exchange_url=\"https://aapi.../v1/token/exchange/product-streamer-api\"" }
+```
+
+The **`exchange_url`** points at **AAPI** (the SRCNet audience-exchange API). The client `GET`s it with its raw IAM token; AAPI returns a **`product-streamer-api`-scoped** token. The client retries the POST and finally streams the data.
 
 <div class="mt-4 grid grid-cols-2 gap-4 text-xs">
   <div class="border-l-4 border-amber-500 pl-3 py-2">
-    <b>PSAPI handler check</b> — token presence → AuthVO 401 with <code>discovery_url</code> (RFC 6750 + AuthVO).
+    <b>Challenge #1 — AuthVO</b><br/><code>discovery_url</code> → OIDC + DCR + device flow → raw IAM token.
   </div>
   <div class="border-l-4 border-violet-500 pl-3 py-2">
-    <b>PAPI delegated check</b> — audience + route ACL → 401 from policy enforcement point.
+    <b>Challenge #2 — Audience</b><br/><code>exchange_url</code> → AAPI token exchange → service-scoped Bearer.
   </div>
 </div>
 
----
-layout: section
----
-
-# 5 · Scaling DataLink for SKAO datasets
-
-What happens when "a product" is *thousands* of files
+<div class="mt-3 text-xs opacity-80">
+The two challenges together let a <i>completely cold</i> client bootstrap into SKA-IAM, register itself, get a user token, exchange it for the service audience, and stream — all driven by HTTP 401 response bodies.
+</div>
 
 ---
 
-# SKA datasets are not single files
+# Why this scales to TB-size datasets
 
-<div class="grid grid-cols-2 gap-8 text-sm">
+<div class="grid grid-cols-2 gap-6 text-xs">
 
 <div>
 
-**SKAO will produce ~700 PB / year of science-ready data products.**
+**How the streaming works**
 
-A *dataset* in SKA is rarely a single file: depending on the product type it can hold **hundreds to thousands** of files — typically **FITS** images, weights, primary-beam and metadata sidecars, or **Measurement Set v2 (MSv2)** directory trees for visibilities.
-
-- **Discovery** is via TAP / ObsCore — query result already includes the DataLink URL
-- Files are stored on **Rucio Storage Elements** (RSEs) — typically StoRM WebDAV
-- Identifiers are **Rucio DIDs** of the form `scope:name`
-- A *dataset* DID is a Rucio container whose constituents are *file* DIDs
+- The client POSTs the DataLink VOTable to PSAPI as-is (`Content-Type: application/xml`) — paths parsed server-side.
+- Single file → `aiofiles` read in **1 MiB chunks** straight into `StreamingResponse`; `Range` + `206` honoured.
+- Multiple files → **on-the-fly uncompressed TAR** assembled per file (header, bytes, padding); nothing on disk, no gzip.
+- Whole pipeline is `async` — slow clients exert backpressure down to the RSE read.
 
 </div>
 
 <div>
 
-```mermaid {scale: 0.42}
-sequenceDiagram
-  participant C as Client
-  participant T as TAP / ObsCore
-  participant D as DataLink
-  participant PS as Product Streamer
-  participant ST as StoRM WebDAV RSE
+**Why it scales**
 
-  Note over C,T: Discovery — IVOA / TAP / ObsCore
-  C->>T: ADQL query
-  T-->>C: DataLink URL
-
-  Note over C,D: Link resolution — IVOA DataLink
-  C->>D: GET /links?id=<dataset DID>
-  D-->>C: VOTable + service descriptor
-
-  Note over C,ST: Transport — SKAO Product Streamer
-  C->>PS: POST /product + Bearer token
-  PS->>ST: read file DIDs
-  ST-->>PS: byte chunks
-  PS-->>C: TAR / raw byte stream
-```
+- Memory footprint is the **chunk size** (1 MiB), not the dataset size — 100 MB or 10 TB are the same.
+- No intermediate compression keeps CPU low and avoids worst-case buffering.
+- Replica selection stays on the server (DMAPI picks the closest RSE).
+- One authenticated request for the whole dataset — `O(1)` HTTP / TLS setup.
+- Each TAR is a coroutine: many users in parallel without per-request buffers.
 
 </div>
+
 </div>
+
+<div class="mt-3 text-xs opacity-75">
+Net effect: a TB-scale Rucio dataset streams through PSAPI with the memory footprint of a single 1 MiB chunk — bounded by the network, not the server.
+</div>
+
 
 ---
 layout: two-cols-header
@@ -595,40 +665,6 @@ One round-trip; client can build the whole download payload.
 
 ---
 
-# What the dataset VOTable looks like
-
-<div class="text-sm">
-
-Each `#child` row carries a **per-file IVOA ID** whose query-string fragment is the path on storage — the client can derive every local path without a second call.
-
-</div>
-
-```xml {all|3-12|14-19}
-<VOTABLE ...>
-  <RESOURCE type="results"><TABLE>
-    <!-- one row per constituent file, all with semantics=#child -->
-    <TR>
-      <TD>ivo://local.srcdev.skao.int?SKA-Mid.integration/02/ba/.../test_0.fits</TD>
-      <TD>davs://storm2.local:8444/sa/.../test_0.fits</TD>
-      <TD/><TD/>
-      <TD>#child</TD>
-      <TD>Constituent file</TD>
-      <TD/><TD/><TD/>
-    </TR>
-    <!-- … #child rows for every other file in the dataset … -->
-  </TABLE></RESOURCE>
-
-  <RESOURCE type="meta" ID="product-streamer" utype="adhoc:service">
-    <PARAM name="accessURL" value="http://psapi-core:8080/v1/data/product"/>
-    <GROUP name="inputParams">
-      <PARAM name="ID" value="ivo://...?<scope>/<name>"/>
-    </GROUP>
-  </RESOURCE>
-</VOTABLE>
-```
-
----
-
 # Why we did it this way
 
 <v-clicks>
@@ -649,155 +685,233 @@ Each `#child` row carries a **per-file IVOA ID** whose query-string fragment is 
 </v-click>
 
 ---
+
+# Full sequence
+
+<div class="grid grid-cols-[1.55fr_1fr] gap-4 items-start">
+
+<div>
+
+```mermaid {scale: 0.36}
+sequenceDiagram
+  autonumber
+  participant C as Client
+  participant DL as DataLink
+  participant PS as PSAPI
+  participant IAM as SKA-IAM
+  participant AAPI as AAPI
+  participant ST as StoRM
+  Note over C,DL: DataLink resolution
+  C->>DL: GET /links?id=dataset
+  DL-->>C: VOTable + #child rows + service descriptor
+  Note over C,PS: Challenge #1 · AuthVO
+  C->>PS: POST VOTable (no token)
+  PS-->>C: 401 ivoa_bearer + discovery_url
+  C->>IAM: OIDC discovery + DCR + device flow
+  IAM-->>C: raw IAM access_token
+  Note over C,AAPI: Challenge #2 · Audience
+  C->>PS: POST VOTable + raw IAM Bearer
+  PS-->>C: 401 ivoa_bearer + exchange_url
+  C->>AAPI: GET exchange_url
+  AAPI-->>C: psapi-scoped token
+  Note over C,ST: Authenticated transport
+  C->>PS: POST VOTable + scoped Bearer
+  PS->>ST: read constituent files
+  ST-->>PS: bytes
+  PS-->>C: TAR stream
+```
+
+</div>
+
+<div class="text-xs space-y-3">
+
+<div>
+<div class="font-semibold text-slate-800 dark:text-slate-100">1 · DataLink resolution</div>
+<div class="opacity-80 mt-0.5">Client GETs <code>/links?id=&lt;dataset&gt;</code>. Anonymous. Response is a VOTable carrying every constituent file row and the <code>product-streamer</code> service descriptor.</div>
+</div>
+
+<div class="border-l-2 border-amber-500 pl-2">
+<div class="font-semibold text-slate-800 dark:text-slate-100">2 · Challenge #1 — AuthVO</div>
+<div class="opacity-80 mt-0.5">Client POSTs the VOTable with no token. PSAPI replies <b>401</b> + <code>discovery_url</code>. Client follows it → OIDC discovery → DCR (RFC 7591) → device flow → <b>raw IAM token</b>.</div>
+</div>
+
+<div class="border-l-2 border-violet-500 pl-2">
+<div class="font-semibold text-slate-800 dark:text-slate-100">3 · Challenge #2 — Audience</div>
+<div class="opacity-80 mt-0.5">Client retries with the raw IAM token. Audience mismatch → PSAPI replies <b>401</b> + <code>exchange_url</code>. Client GETs <code>exchange_url</code> on AAPI → <b>product-streamer-api</b> scoped token.</div>
+</div>
+
+<div class="border-l-2 border-emerald-500 pl-2">
+<div class="font-semibold text-slate-800 dark:text-slate-100">4 · Authenticated transport</div>
+<div class="opacity-80 mt-0.5">Final POST with the scoped Bearer. PSAPI reads constituent files from the RSE in 1 MiB chunks and streams them as an on-the-fly TAR archive.</div>
+</div>
+
+</div>
+
+</div>
+
+---
 layout: section
 ---
 
 # 6 · End-to-end demo
 
-`demo/product_streamer_demo.ipynb`
+`demo/notebooks/user_flow_demo.py` — dataset route, cold-start client
 
 ---
 
-# Step 1 — Acquire a scoped token
+# Step 1 — Query DataLink for the dataset
 
-```python
-from ska_test_utils.auth import get_psapi_token
+The user knows only the **dataset DID**. The DataLink call is anonymous — no token required at this stage.
 
-# admin token exchanged for product-streamer-api audience
-psapi_token = get_psapi_token()
-```
+```python {all|1-6|8}
+dataset_did = f"{namespace}:{dataset_name}"
 
-The notebook uses an `OAuth2Session` client-credentials grant against SKA-IAM, with `audience=product-streamer-api`. In production a user obtains the token interactively; the audience is the **only** thing PSAPI's permission check looks at beyond presence.
-
-<div class="mt-4 text-xs opacity-70">
-
-The same pattern is what DataLink itself uses to talk to DMAPI — see `OAuth2ServiceToken.get()` in `ska-src-dm-datalink`. The chain of audiences is the trust boundary.
-
-</div>
-
----
-
-# Step 2 — Query DataLink for the dataset
-
-```python {all|1-6|8-18}
-dataset_did = "SKA-Mid.integration:EB-E6E2BBFC.product-0e8afdfc"
-
-dl = requests.get(
+dl_response = requests.get(
     f"{DATALINK_URL}/v1/links",
     params={"id": dataset_did}, timeout=30,
 )
-
-root = ET.fromstring(dl.content)
-ps_res = root.find('.//v:RESOURCE[@ID="product-streamer"]', VOTABLE_NS)
-product_streamer_url = ps_res.find('.//v:PARAM[@name="accessURL"]', VOTABLE_NS).get("value")
-
-products_payload = []
-for row in root.findall('.//v:RESOURCE[@type="results"]//v:TR', VOTABLE_NS):
-    tds = row.findall("v:TD", VOTABLE_NS)
-    if "#child" in [td.text for td in tds if td.text]:
-        ivoa_id = tds[0].text
-        path_on_storage = ivoa_id.split("?", 1)[1]   # everything after '?'
-        products_payload.append({"did": ..., "path": f"/storm-rse2/{path_on_storage}"})
+# `dl_response.content` is the raw VOTable bytes —
+# we'll pass them to PSAPI as-is, no client-side XML parsing needed.
 ```
 
-**One round-trip** to DataLink and we have a fully formed POST body for PSAPI.
+The response is a VOTable with one `#child` row per constituent file and a `product-streamer` service descriptor advertising the PSAPI endpoint for this storage area.
 
 ---
 
-# Step 3 — Stream the dataset as a TAR archive
+# Step 2 — Challenge #1 · AuthVO
 
-```python
-response = requests.post(
-    product_streamer_url, json=products_payload,
-    headers={"Authorization": f"Bearer {psapi_token}"},
-    stream=True, timeout=(30, 600),
+The client POSTs the raw VOTable to PSAPI *without* a token. PSAPI replies with the **AuthVO** challenge:
+
+```python {all|1-5|8-11|13}
+resp = requests.post(
+    ps_access_url,
+    data=dl_response.content,
+    headers={"Content-Type": "application/xml"},
 )
-
-# Content-Type: application/x-tar
-with tarfile.open(fileobj=BytesIO(response.content), mode="r:") as tar:
-    members = tar.getmembers()
+# Status : 401
+# Detail :
+#   Unauthorized WWW-Authenticate: ivoa_bearer
+#     error="invalid_request",
+#     error_description="Missing access token",
+#     discovery_url="https://iam.test/.well-known/openid-configuration"
+challenge = resp.json()["detail"]
+discovery_url = re.search(r'discovery_url="([^"]+)"', challenge).group(1)
 ```
 
-```
-Status          : 200
-Content-Type    : application/x-tar
-TAR archive contains 3 member(s):
-  test_EB-E6E2BBFC_0.fits     1,048,576 bytes
-  test_EB-E6E2BBFC_1.fits     1,048,576 bytes
-  test_EB-E6E2BBFC_2.fits     1,048,576 bytes
-```
-
-The tarball is **built on the fly** as bytes are pulled off the RSE — memory usage on PSAPI stays flat regardless of dataset size.
+The client extracts `discovery_url` and follows it to learn everything it needs about the IAM.
 
 ---
 
-# Step 4 — The auth challenge in action
+# Step 3 — OIDC + DCR + device flow
 
-<div class="grid grid-cols-2 gap-6 text-sm">
+<div class="text-sm">
 
-<div>
-
-**No token → AuthVO bootstrap**
-
-```python
-requests.post(ps_url, json=[...])
-# → 401
-# detail: Unauthorized WWW-Authenticate:
-#   ivoa_bearer error="invalid_request",
-#   discovery_url="https://ska-iam.../.well-known/..."
-```
-
-The `discovery_url` is what a naïve VO client follows to learn how to talk to SKA-IAM. After token exchange for `product-streamer-api`, it retries and succeeds.
+From the discovery document the client reads three endpoints, self-registers as a public client (RFC 7591 DCR), and runs the device flow. <span class="opacity-70">↓ scroll the snippet</span>
 
 </div>
 
-<div>
+<div class="mt-2 max-h-[380px] overflow-y-auto rounded border border-slate-300 dark:border-slate-700">
 
-**Wrong audience → PAPI policy 401**
+```python {all|3-5|7-13|15-23}
+cfg = requests.get(discovery_url).json()
 
-```python
-raw_token = get_user_token()  # not exchanged
-requests.post(ps_url, json=[...],
-  headers={"Authorization": f"Bearer {raw_token}"})
-# → 401 from PAPI audience check
+registration_endpoint         = cfg["registration_endpoint"]          # RFC 7591
+device_authorization_endpoint = cfg["device_authorization_endpoint"]  # device flow
+token_endpoint                = cfg["token_endpoint"]
+
+# Self-register a public client (RFC 7591 DCR)
+client = requests.post(registration_endpoint, json={
+    "client_name": "user-flow-demo-client",
+    "grant_types": ["urn:ietf:params:oauth:grant-type:device_code", "refresh_token"],
+    "scope": "openid profile email offline_access",
+    "token_endpoint_auth_method": "none",
+}).json()
+client_id = client["client_id"]
+
+# Device flow → IAM access token (user approves at verification_uri_complete)
+da = requests.post(device_authorization_endpoint,
+                   data={"client_id": client_id, "scope": "openid profile email"}).json()
+# … user authorises at da["verification_uri_complete"] …
+tok = requests.post(token_endpoint, data={
+    "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+    "device_code": da["device_code"], "client_id": client_id,
+}).json()
+iam_access_token = tok["access_token"]
 ```
 
-PAPI is the policy enforcement point: it owns route-level permissions and audience validation. PSAPI itself only checks presence.
-
-</div>
 </div>
 
 ---
 
-# Full sequence
+# Step 4 — Challenge #2 · Audience
 
-```mermaid {scale: 0.4}
-sequenceDiagram
-  autonumber
-  participant C as Client
-  participant IAM as SKA-IAM
-  participant DL as DataLink
-  participant DM as DMAPI
-  participant SC as SCAPI
-  participant PS as PSAPI
-  participant ST as StoRM
-  Note over C,PS: AuthVO bootstrap
-  C->>PS: POST product no token
-  PS-->>C: 401 ivoa_bearer challenge
-  C->>IAM: token-exchange
-  IAM-->>C: access_token
-  Note over C,DL: DataLink resolution
-  C->>DL: GET /links?id=dataset
-  DL->>DM: locate
-  DM->>SC: co-located services
-  SC-->>DM: product_streamer URL
-  DM-->>DL: replicas + services
-  DL-->>C: VOTable
-  Note over C,PS: Authenticated transport
-  C->>PS: POST product + Bearer
-  PS->>ST: read chunks (PAPI-checked)
-  ST-->>PS: bytes
-  PS-->>C: TAR stream
+Client retries the POST with its **raw IAM token**. The audience doesn't match `product-streamer-api`, so PSAPI replies with the **second** AuthVO challenge — this one carries `exchange_url`:
+
+```python {all|1-7|9-13|15}
+resp = requests.post(
+    ps_access_url,
+    data=dl_response.content,
+    headers={
+        "Authorization": f"Bearer {iam_access_token}",
+        "Content-Type": "application/xml",
+    },
+)
+# Status : 401
+# Detail :
+#   Unauthorized WWW-Authenticate: ivoa_bearer
+#     error="invalid_token",
+#     error_description="Token audience is incorrect — exchange for the required service token",
+#     exchange_url="https://aapi.test/api/v1/token/exchange/product-streamer-api"
+exchange_url = re.search(r'exchange_url="([^"]+)"', resp.json()["detail"]).group(1)
+```
+
+---
+
+# Step 5 — Exchange token via AAPI
+
+The client follows the `exchange_url` from the second challenge — no hard-coded AAPI URL required.
+
+```python
+# Derive AAPI base URL + target audience from the exchange_url itself
+aapi_url_from_challenge, service = exchange_url.split("/v1/token/exchange/")
+
+user_psapi_token = exchange_token(
+    iam_access_token,
+    service,                          # "product-streamer-api"
+    aapi_url=aapi_url_from_challenge,
+)
+```
+
+`AAPI` (Audience API) verifies the caller's identity with PAPI and issues a **narrower token scoped to `product-streamer-api`**. The client is now ready to retry.
+
+---
+
+# Step 6 — Stream the dataset as a TAR archive
+
+Third POST — same body, with the scoped Bearer. PSAPI parses the VOTable internally, derives the per-file storage paths, and streams an uncompressed TAR on the fly.
+
+```python {all|1-9|11-15}
+stream_resp = requests.post(
+    ps_access_url,
+    data=dl_response.content,                 # raw VOTable
+    headers={
+        "Authorization": f"Bearer {user_psapi_token}",
+        "Content-Type": "application/xml",
+    },
+    stream=True,
+)
+# Status : 200
+# Content-Type : application/x-tar
+
+with tarfile.open(fileobj=BytesIO(stream_resp.content), mode="r:") as tar:
+    for m in tar.getmembers():
+        print(m.name, m.size)
+```
+
+```
+test_EB-E6E2BBFC_0.fits   1,048,576 bytes
+test_EB-E6E2BBFC_1.fits   1,048,576 bytes
+test_EB-E6E2BBFC_2.fits   1,048,576 bytes
 ```
 
 ---
@@ -818,6 +932,7 @@ For the DSP / DAL WGs
 - **Custom service descriptors.** `#product-stream` and a custom `accessURL` with a single `ID` input feels like the simplest possible service descriptor — but should we register a `standardID` for "give me bytes for this DID"?
 - **`link_auth` and `link_authorized`.** We don't emit these today. Worth adding so generic clients know up-front that every PFN will challenge them?
 - **Dataset-level DataLink.** Is "one dataset ID → many `#child` rows in one VOTable" a legitimate reading of the spec, or is the recursive-DataLink pattern the only blessed shape? The cost of recursion at SKA scale is real.
+- **Audience Challenge** where should the audience be advertised,like we do in the product? Should we agree on a common audience for all IVOA Services? Are there any security implications? 
 
 </v-clicks>
 
