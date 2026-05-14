@@ -179,62 +179,6 @@ A *dataset* in SKA is rarely a single file: depending on the product type it can
 - Identifiers are **Rucio DIDs** of the form `scope:name`
 - A *dataset* DID is a Rucio container whose constituents are *file* DIDs
 
-
-</div>
-
----
-
-# What the dataset VOTable looks like
-
-<div class="text-sm">
-
-Each `#child` row carries a **per-file IVOA ID** whose query-string fragment is the path on storage — the client can derive every local path without a second call. <span class="opacity-70">↓ scroll inside the snippet</span>
-
-</div>
-
-<div class="mt-2 max-h-[400px] overflow-y-auto rounded border border-slate-300 dark:border-slate-700">
-
-```xml {all}
-<VOTABLE ...>
-  <RESOURCE type="results"><TABLE>
-    <!-- one row per constituent file, all with semantics=#child -->
-    <TR>
-      <TD>ivo://local.srcdev.skao.int?SKA-Mid.integration/02/ba/EB-E6E2BBFC.../test_0.fits</TD>
-      <TD>davs://storm2.local:8444/sa/.../test_0.fits</TD>
-      <TD/><TD/><TD>#child</TD><TD>Constituent file</TD><TD/><TD/><TD/>
-    </TR>
-    <TR>
-      <TD>ivo://local.srcdev.skao.int?SKA-Mid.integration/dd/13/EB-E6E2BBFC.../test_1.fits</TD>
-      <TD>davs://storm2.local:8444/sa/.../test_1.fits</TD>
-      <TD/><TD/><TD>#child</TD><TD>Constituent file</TD><TD/><TD/><TD/>
-    </TR>
-    <TR>
-      <TD>ivo://local.srcdev.skao.int?SKA-Mid.integration/0f/95/EB-E6E2BBFC.../test_2.fits</TD>
-      <TD>davs://storm2.local:8444/sa/.../test_2.fits</TD>
-      <TD/><TD/><TD>#child</TD><TD>Constituent file</TD><TD/><TD/><TD/>
-    </TR>
-    <TR>
-      <TD>ivo://local.srcdev.skao.int?SKA-Mid.integration/47/a2/EB-E6E2BBFC.../test_3.fits</TD>
-      <TD>davs://storm2.local:8444/sa/.../test_3.fits</TD>
-      <TD/><TD/><TD>#child</TD><TD>Constituent file</TD><TD/><TD/><TD/>
-    </TR>
-    <TR>
-      <TD>ivo://local.srcdev.skao.int?SKA-Mid.integration/91/8c/EB-E6E2BBFC.../test_4.fits</TD>
-      <TD>davs://storm2.local:8444/sa/.../test_4.fits</TD>
-      <TD/><TD/><TD>#child</TD><TD>Constituent file</TD><TD/><TD/><TD/>
-    </TR>
-    <!-- … one #child row per file (hundreds to thousands of rows for a real SKA dataset) … -->
-  </TABLE></RESOURCE>
-
-  <RESOURCE type="meta" ID="product-streamer" utype="adhoc:service">
-    <PARAM name="accessURL" value="http://psapi-core:8080/v1/data/product"/>
-    <GROUP name="inputParams">
-      <PARAM name="ID" value="ivo://...?<scope>/<name>"/>
-    </GROUP>
-  </RESOURCE>
-</VOTABLE>
-```
-
 </div>
 ---
 layout: section
@@ -277,6 +221,95 @@ Each row in the response has **exactly one of** `access_url`, `service_def`, or 
 
 ---
 
+# A classic DataLink VOTable for a multi-file dataset
+
+<div class="text-sm">
+
+The canonical IVOA pattern for "a dataset is multiple files" — one row per related resource, all sharing the **same input ID**, distinguished by the `semantics` column. <span class="opacity-70">↓ scroll the snippet</span>
+
+</div>
+
+<div class="mt-2 max-h-[400px] overflow-y-auto rounded border border-sky-500 bg-sky-50/40 dark:bg-sky-900/15">
+
+```xml {all}
+<VOTABLE xmlns="http://www.ivoa.net/xml/VOTable/v1.3" version="1.4">
+  <RESOURCE type="results">
+    <INFO name="standardID" value="ivo://ivoa.net/std/DataLink#links-1.1"/>
+    <TABLE>
+      <FIELD name="ID"             datatype="char" arraysize="*" ucd="meta.id;meta.main"/>
+      <FIELD name="access_url"     datatype="char" arraysize="*" ucd="meta.ref.url"/>
+      <FIELD name="service_def"    datatype="char" arraysize="*" ucd="meta.ref"/>
+      <FIELD name="error_message"  datatype="char" arraysize="*" ucd="meta.code.error"/>
+      <FIELD name="semantics"      datatype="char" arraysize="*" ucd="meta.code"/>
+      <FIELD name="description"    datatype="char" arraysize="*" ucd="meta.note"/>
+      <FIELD name="content_type"   datatype="char" arraysize="*" ucd="meta.code.mime"/>
+      <FIELD name="content_length" datatype="long" ucd="phys.size;meta.file" unit="byte"/>
+      <DATA><TABLEDATA>
+
+        <!-- Primary science file -->
+        <TR>
+          <TD>ivo://example.org/data?obs/2024/03/exposure_1234</TD>
+          <TD>https://example.org/data/obs_1234.fits</TD>
+          <TD/><TD/><TD>#this</TD>
+          <TD>Primary science file</TD>
+          <TD>application/fits</TD>
+          <TD>52428800</TD>
+        </TR>
+
+        <!-- Quick-look preview -->
+        <TR>
+          <TD>ivo://example.org/data?obs/2024/03/exposure_1234</TD>
+          <TD>https://example.org/data/obs_1234_preview.png</TD>
+          <TD/><TD/><TD>#preview</TD>
+          <TD>PNG quick-look</TD>
+          <TD>image/png</TD>
+          <TD>262144</TD>
+        </TR>
+
+        <!-- Weight map -->
+        <TR>
+          <TD>ivo://example.org/data?obs/2024/03/exposure_1234</TD>
+          <TD>https://example.org/data/obs_1234_weight.fits</TD>
+          <TD/><TD/><TD>#auxiliary</TD>
+          <TD>Weight map</TD>
+          <TD>application/fits</TD>
+          <TD>10485760</TD>
+        </TR>
+
+        <!-- Calibration product -->
+        <TR>
+          <TD>ivo://example.org/data?obs/2024/03/exposure_1234</TD>
+          <TD>https://example.org/data/obs_1234_calib.fits</TD>
+          <TD/><TD/><TD>#calibration</TD>
+          <TD>Calibration applied to this exposure</TD>
+          <TD>application/fits</TD>
+          <TD>1048576</TD>
+        </TR>
+
+        <!-- Progenitor / input dataset -->
+        <TR>
+          <TD>ivo://example.org/data?obs/2024/03/exposure_1234</TD>
+          <TD>https://example.org/datalink/links?ID=ivo://example.org/raw/2024/03/exp_1234_L0</TD>
+          <TD/><TD/><TD>#progenitor</TD>
+          <TD>Level-0 input dataset (recursive DataLink)</TD>
+          <TD>application/x-votable+xml;content=datalink</TD>
+          <TD/>
+        </TR>
+
+      </TABLEDATA></DATA>
+    </TABLE>
+  </RESOURCE>
+</VOTABLE>
+```
+
+</div>
+
+<div class="mt-2 text-xs opacity-80">
+One dataset ID → many rows. The same <code>ID</code> column appears in every <code>TR</code>; the <code>semantics</code> column carries the role from the core vocabulary (<code>#this</code>, <code>#preview</code>, <code>#auxiliary</code>, <code>#calibration</code>, <code>#progenitor</code>, …).
+</div>
+
+---
+
 # Service descriptors
 
 <div class="border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-2 text-sm">
@@ -309,7 +342,7 @@ A **service descriptor** is metadata that ships *inside* the VOTable to tell a c
 </div>
 
 <div class="text-xs mt-3 opacity-80">
-This is the <b>extension point</b> we use to advertise our auth-bearing transport service (the <b>Product Streamer</b>) — coming up shortly.
+This is the <b>extension point</b> we use to advertise our auth-bearing transport service (the Product Streamer) — that's what justifies the divergence on the next slide.
 </div>
 
 ---
@@ -383,7 +416,7 @@ Every StoRM endpoint is a Rucio Storage Element (RSE); Rucio is the global catal
 
 <div>
 
-```mermaid {scale: 0.42}
+```mermaid {scale: 0.50}
 sequenceDiagram
   participant C as Client
   participant T as TAP / ObsCore
@@ -410,9 +443,14 @@ sequenceDiagram
 
 <div class="text-sm">
 
-DataLink is a **thin bridge**: DMAPI returns the file locations on the RSEs federated through Rucio; DataLink formats the answer as a VOTable, and embeds the co-located Product Streamer as an `adhoc:service` descriptor (looked up via SCAPI).
+- DataLink is a **thin bridge**: 
+  - DMAPI returns the file locations on the RSEs federated through Rucio; 
+- DataLink formats the answer as a VOTable, and embeds the co-located Product Streamer as an `adhoc:service` descriptor (looked up via SCAPI).
 
-PSAPI is the **streaming proxy**: it issues the two AuthVO challenges, validates the caller's token audience with PAPI/AAPI, then pulls bytes off the node-local RSE.
+PSAPI is the **streaming proxy**: 
+- it issues the two AuthVO challenges
+- validates the caller's token audience and data access permission with PAPI/AAPI
+- pulls bytes off the node-local RSE.
 
 </div>
 
@@ -422,7 +460,7 @@ PSAPI is the **streaming proxy**: it issues the two AuthVO challenges, validates
 
 # The `/links` route — single entry point
 
-```py {all|6-9|11-15}
+```py {all|12-16}
 @api_version(1)
 @datalink_router.get("/links", response_class=HTMLResponse, tags=["DataLink"])
 async def links(
@@ -667,14 +705,13 @@ One round-trip; client can build the whole download payload.
 
 # Why we did it this way
 
-<v-clicks>
+
 
 - **Network economics.** SRCs are globally distributed; a 1500-file VLBI dataset over 200 ms RTT is ~5 min of pure latency at one-call-per-file.
 - **Atomic snapshot.** All children come from the *same* `locate` response, so replica selection and co-located services stay consistent for the whole dataset.
 - **Clients stay simple.** A notebook can parse one VOTable, build one POST body, and stream the whole product.
 - **`#child` is already in the core vocab** — we are using it in the spirit the spec describes (the *multiple files per dataset* use case), just at the *response* level rather than via the *recursive DataLink* pattern.
 
-</v-clicks>
 
 <v-click>
 
@@ -763,7 +800,7 @@ layout: section
 
 The user knows only the **dataset DID**. The DataLink call is anonymous — no token required at this stage.
 
-```python {all|1-6|8}
+```python {all}
 dataset_did = f"{namespace}:{dataset_name}"
 
 dl_response = requests.get(
@@ -782,7 +819,7 @@ The response is a VOTable with one `#child` row per constituent file and a `prod
 
 The client POSTs the raw VOTable to PSAPI *without* a token. PSAPI replies with the **AuthVO** challenge:
 
-```python {all|1-5|8-11|13}
+```python {all}
 resp = requests.post(
     ps_access_url,
     data=dl_response.content,
@@ -812,7 +849,7 @@ From the discovery document the client reads three endpoints, self-registers as 
 
 <div class="mt-2 max-h-[380px] overflow-y-auto rounded border border-slate-300 dark:border-slate-700">
 
-```python {all|3-5|7-13|15-23}
+```python {all|3-6|7-14|15-24}
 cfg = requests.get(discovery_url).json()
 
 registration_endpoint         = cfg["registration_endpoint"]          # RFC 7591
@@ -847,7 +884,7 @@ iam_access_token = tok["access_token"]
 
 Client retries the POST with its **raw IAM token**. The audience doesn't match `product-streamer-api`, so PSAPI replies with the **second** AuthVO challenge — this one carries `exchange_url`:
 
-```python {all|1-7|9-13|15}
+```python {all|1-7|9-14|15}
 resp = requests.post(
     ps_access_url,
     data=dl_response.content,
@@ -890,7 +927,7 @@ user_psapi_token = exchange_token(
 
 Third POST — same body, with the scoped Bearer. PSAPI parses the VOTable internally, derives the per-file storage paths, and streams an uncompressed TAR on the fly.
 
-```python {all|1-9|11-15}
+```python {all|1-9|10-15}
 stream_resp = requests.post(
     ps_access_url,
     data=dl_response.content,                 # raw VOTable
