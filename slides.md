@@ -80,9 +80,7 @@ Every API in the SRCNet federation is locked behind **OIDC** authentication deli
 - **Authentication** is via short-lived OAuth2 access tokens
 - **Authorisation** is per-service: a user token must be **exchanged** for the service's audience (e.g. `product-streamer-api`) before it is accepted
 - The **audience boundary** is the trust boundary — DataLink, DMAPI, PAPI, AAPI and PSAPI all check it
-
 Generic VO clients (TOPCAT, Aladin, pyVO) have no built-in knowledge of SKA-IAM. PSAPI bootstraps them with **two consecutive challenges**:
-
 1. **AuthVO challenge** — no token → 401 carrying `discovery_url`
 2. **Audience challenge** — wrong audience → 401 carrying `exchange_url`
 
@@ -125,7 +123,7 @@ The IVOA **AuthVO** note (an extension of <a href="https://datatracker.ietf.org/
 
 </div>
 
-```http {all|1|3-7|6}
+```http {all|1|3-7}
 HTTP/1.1 401 Unauthorized
 WWW-Authenticate:
    ivoa_bearer
@@ -637,10 +635,10 @@ The two challenges together let a <i>completely cold</i> client bootstrap into S
 
 **How the streaming works**
 
-- The client POSTs the DataLink VOTable to PSAPI as-is (`Content-Type: application/xml`) — paths parsed server-side.
-- Single file → `aiofiles` read in **1 MiB chunks** straight into `StreamingResponse`; `Range` + `206` honoured.
-- Multiple files → **on-the-fly uncompressed TAR** assembled per file (header, bytes, padding); nothing on disk, no gzip.
-- Whole pipeline is `async` — slow clients exert backpressure down to the RSE read.
+- Client POSTs the DataLink VOTable to PSAPI as-is (`Content-Type: application/xml`); paths parsed server-side.
+- Single file → `aiofiles` read in adaptive chunks into `StreamingResponse`; `Range` + `206` honoured.
+- Multiple files → **on-the-fly uncompressed TAR** with **pre-computed `Content-Length`** so clients get a real progress bar; nothing on disk, no gzip.
+- Whole pipeline is `async` — slow clients exert backpressure all the way down to the RSE read.
 
 </div>
 
@@ -648,9 +646,8 @@ The two challenges together let a <i>completely cold</i> client bootstrap into S
 
 **Why it scales**
 
-- Memory footprint is the **chunk size** (1 MiB), not the dataset size — 100 MB or 10 TB are the same.
-- No intermediate compression keeps CPU low and avoids worst-case buffering.
-- Replica selection stays on the server (DMAPI picks the closest RSE).
+- Memory footprint is **one chunk** (≤ 16 MiB), not the dataset size — 100 MB or 10 TB are the same.
+- No intermediate compression; replica selection stays on the server (DMAPI picks the closest RSE).
 - One authenticated request for the whole dataset — `O(1)` HTTP / TLS setup.
 - Each TAR is a coroutine: many users in parallel without per-request buffers.
 
@@ -658,8 +655,23 @@ The two challenges together let a <i>completely cold</i> client bootstrap into S
 
 </div>
 
+<div class="mt-3 grid grid-cols-[1fr_auto] gap-4 items-center text-xs">
+
+<div>
+<b>Adaptive chunk size.</b> A <code>_ChunkCalibrator</code> times each yield (real network backpressure). After 2 MiB — past TCP slow-start — it picks a chunk size from the measured bandwidth. Tiers are grounded in <b>BDP = bandwidth × RTT</b> and aligned with rclone / boto3 / ESnet defaults: bigger pipes get bigger chunks for free.
+</div>
+
+<div class="flex gap-2">
+  <div class="border-l-4 border-slate-400 pl-2"><div class="opacity-70">&lt; 10 MB/s</div><b>1 MiB</b></div>
+  <div class="border-l-4 border-sky-500 pl-2"><div class="opacity-70">10–99</div><b>4 MiB</b></div>
+  <div class="border-l-4 border-emerald-500 pl-2"><div class="opacity-70">100–499</div><b>8 MiB</b></div>
+  <div class="border-l-4 border-violet-500 pl-2"><div class="opacity-70">≥ 500</div><b>16 MiB</b></div>
+</div>
+
+</div>
+
 <div class="mt-3 text-xs opacity-75">
-Net effect: a TB-scale Rucio dataset streams through PSAPI with the memory footprint of a single 1 MiB chunk — bounded by the network, not the server.
+Net effect: a TB-scale Rucio dataset streams through PSAPI bounded by the network and the chosen chunk tier — the server is never the bottleneck.
 </div>
 
 
