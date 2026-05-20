@@ -12,30 +12,37 @@ drawings:
 transition: slide-left
 mdc: true
 fonts:
-  sans: 'Inter'
-  mono: 'JetBrains Mono'
+  sans: 'Noto Sans'
+  mono: 'Noto Sans Mono'
+themeConfig:
+  primary: '#E70068'
+background: '#ffffff'
 ---
 
-<div class="text-3xl font-bold leading-tight mt-4">
+<div class="flex justify-start mb-4">
+  <img src="./images/skao_logo_2021_colour_rgb_2500x1058px_transparent (1).png" class="h-10" alt="SKAO Logo" />
+</div>
+
+<div class="text-3xl font-bold leading-tight mt-2" style="color:#070068;">
 The Auth Challenge Mechanism for<br/>
 SRCNet IVOA DataLink Integration<br/>
 through the Product Streamer
 </div>
 
-<div class="text-base opacity-80 mt-6">
+<div class="text-base mt-6" style="color:#333333;">
 How a VO client bootstraps into SKA-IAM and walks away with the bytes
 </div>
 
-<div class="mt-8 text-sm opacity-70">
+<div class="mt-8 text-sm" style="color:#555555;">
 Michele Delli Veneri &nbsp;·&nbsp; SKA Observatory<br/>
-IVOA Interoperability Meeting — Strasbourg, 7 – 12 June 2026
+PI 30 Demo
 </div>
 
-<div class="mt-6 mx-auto max-w-2xl border-l-4 border-sky-500 bg-sky-50/60 dark:bg-sky-900/20 pl-4 py-2 text-xs text-left">
-  Blocks with a <span class="text-sky-700 dark:text-sky-300 font-semibold">sky-blue accent</span> in the slides are taken directly from the IVOA DataLink 1.1 Recommendation — <a href="https://www.ivoa.net/documents/DataLink/" class="underline">ivoa.net/documents/DataLink/</a>.
+<div class="mt-6 mx-auto max-w-2xl border-l-4 border-[#E70068] bg-[#E70068]/8 pl-4 py-2 text-xs text-left" style="color:#333333;">
+  Blocks with a <span class="text-[#E70068] font-semibold">magenta accent</span> in the slides are taken directly from the IVOA DataLink 1.1 Recommendation — <a href="https://www.ivoa.net/documents/DataLink/" class="underline">ivoa.net/documents/DataLink/</a>.
 </div>
 
-<div class="abs-br m-6 text-xs opacity-60">
+<div class="abs-br m-6 text-xs" style="color:#777777;">
 Distributed Services & Protocols WG
 </div>
 
@@ -52,7 +59,7 @@ deliver bytes. Many-file dataset handling is a bonus appendix.
 
 1. **The problem** — SKAO data is token-gated; generic VO clients (TOPCAT, Aladin, pyVO) are not
 2. **IVOA DataLink** in 90 seconds — `{links}` endpoint and service descriptors
-3. **Our SRCNet implementation** — DataLink + Product Streamer (PSAPI), and how PSAPI issues
+3. **Our SRCNet implementation** — DataLink + Product Streamer API (PSAPI), and how PSAPI issues
    - **Challenge #1** — AuthVO `ivoa_bearer` with `discovery_url` (no token)
    - **Challenge #2** — AuthVO `ivoa_bearer` with `exchange_url` (wrong audience)
 4. **Scaling** DataLink for SKAO datasets — hundreds-to-thousands of files in one VOTable
@@ -79,7 +86,7 @@ Every API in the SRCNet federation is locked behind **OIDC** authentication deli
 
 - **Authentication** is via short-lived OAuth2 access tokens
 - **Authorisation** is per-service: a user token must be **exchanged** for the service's audience (e.g. `product-streamer-api`) before it is accepted
-- The **audience boundary** is the trust boundary — DataLink, DMAPI, PAPI, AAPI and PSAPI all check it
+- The **audience boundary**:  all the token gated APIs in SRCNet accept only correctly scoped tokens. This limits the capacity of a token in case of a security breach. 
 Generic VO clients (TOPCAT, Aladin, pyVO) have no built-in knowledge of SKA-IAM. PSAPI bootstraps them with **two consecutive challenges**:
 1. **AuthVO challenge** — no token → 401 carrying `discovery_url`
 2. **Audience challenge** — wrong audience → 401 carrying `exchange_url`
@@ -111,49 +118,6 @@ sequenceDiagram
 ```
 
 </div>
-</div>
-
----
-
-# The IVOA AuthVO bearer challenge
-
-<div class="text-sm">
-
-The IVOA **AuthVO** note (an extension of <a href="https://datatracker.ietf.org/doc/html/rfc6750">RFC 6750 Bearer Token Usage</a>) defines the contract that lets a generic VO client follow a 401 into an unknown identity provider:
-
-</div>
-
-```http {all|1|3-7}
-HTTP/1.1 401 Unauthorized
-WWW-Authenticate:
-   ivoa_bearer
-   error="invalid_request",
-   error_description="Missing access token",
-   discovery_url="https://iam.skao.org/.well-known/openid-configuration"
-```
-
-<div class="text-sm mt-2">
-
-The key field is **`discovery_url`**: it points at an OIDC well-known document. From that one URL, the client can read the token endpoint, the supported grant types, the audience claim policy — everything it needs to obtain a valid Bearer token and retry the request.
-
-</div>
-
-<div class="grid grid-cols-3 gap-4 mt-4 text-xs">
-  <div class="border-l-4 border-sky-500 pl-3 py-2">
-    <b>error</b> · error code from RFC 6750 — <code>invalid_request</code>, <code>invalid_token</code>, …
-  </div>
-  <div class="border-l-4 border-sky-500 pl-3 py-2">
-    <b>error_description</b> · human-readable diagnostic for clients and operators
-  </div>
-  <div class="border-l-4 border-sky-500 pl-3 py-2">
-    <b>discovery_url</b> · OIDC well-known endpoint for the IAM realm — the bootstrap target
-  </div>
-</div>
-
-<div class="mt-3 text-xs opacity-80">
-
-The whole talk hangs on this challenge. <b>Where</b> in our stack does it live? On the <b>Product Streamer</b> — that's where the bytes are, and that's where the audience boundary actually matters.
-
 </div>
 
 ---
@@ -189,7 +153,7 @@ layout: section
 
 # The `{links}` endpoint
 
-<div class="border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-2 text-sm">
+<div class="border-l-4 border-[#E70068] bg-[#E70068]/5 dark:bg-[#E70068]/8 pl-4 py-2 text-sm">
 
 A DALI-sync resource. The client sends one or more **ID** values; the service responds with a **VOTable** of links. Mandatory parameters: `ID` (one or more identifiers) and `RESPONSEFORMAT` (a no-op for `votable`).
 
@@ -201,7 +165,7 @@ Each row in the response has **exactly one of** `access_url`, `service_def`, or 
 
 </div>
 
-<div class="mt-2 border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-2 text-xs">
+<div class="mt-2 border-l-4 border-[#E70068] bg-[#E70068]/5 dark:bg-[#E70068]/8 pl-4 py-2 text-xs">
 
 **Required columns** (DataLink spec, Table 1):
 
@@ -211,7 +175,7 @@ Each row in the response has **exactly one of** `access_url`, `service_def`, or 
 
 </div>
 
-<div class="mt-2 border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-2 text-xs">
+<div class="mt-2 border-l-4 border-[#E70068] bg-[#E70068]/5 dark:bg-[#E70068]/8 pl-4 py-2 text-xs">
 
 `semantics` values like `#this`, `#preview`, `#progenitor`, `#cutout` come from the core DataLink vocabulary at `http://www.ivoa.net/rdf/datalink/core`.
 
@@ -227,7 +191,7 @@ The canonical IVOA pattern for "a dataset is multiple files" — one row per rel
 
 </div>
 
-<div class="mt-2 max-h-[400px] overflow-y-auto rounded border border-sky-500 bg-sky-50/40 dark:bg-sky-900/15">
+<div class="mt-2 max-h-[400px] overflow-y-auto rounded border border-[#E70068] bg-[#E70068]/5 dark:bg-[#E70068]/8">
 
 ```xml {all}
 <VOTABLE xmlns="http://www.ivoa.net/xml/VOTable/v1.3" version="1.4">
@@ -310,13 +274,13 @@ One dataset ID → many rows. The same <code>ID</code> column appears in every <
 
 # Service descriptors
 
-<div class="border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-2 text-sm">
+<div class="border-l-4 border-[#E70068] bg-[#E70068]/5 dark:bg-[#E70068]/8 pl-4 py-2 text-sm">
 
 A **service descriptor** is metadata that ships *inside* the VOTable to tell a client **how to invoke a related service**. It's a `<RESOURCE type="meta" utype="adhoc:service">` block. A row in the results table references it via `service_def="<resource-ID>"`.
 
 </div>
 
-<div class="mt-2 border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-2">
+<div class="mt-2 border-l-4 border-[#E70068] bg-[#E70068]/5 dark:bg-[#E70068]/8 pl-4 py-2">
 
 ```xml {all|1|2|3|4-8}
 <RESOURCE type="meta" ID="soda-sync" utype="adhoc:service">
@@ -333,7 +297,7 @@ A **service descriptor** is metadata that ships *inside* the VOTable to tell a c
 </div>
 
 <div class="text-xs grid grid-cols-2 gap-x-8 gap-y-1 mt-3">
-  <div><b>1 · the resource block</b> — <code>utype="adhoc:service"</code> identifies it as a service descriptor; the <code>ID</code> is what <code>service_def</code> rows point at.</div>
+  <div><b>1 · resource block</b> — <code>utype="adhoc:service"</code> identifies it as a service descriptor; the <code>ID</code> is what <code>service_def</code> rows point at.</div>
   <div><b>2 · accessURL</b> — the endpoint the client should hit.</div>
   <div><b>3 · standardID (optional)</b> — declares the service implements an IVOA standard (here SODA-sync-1.0) so generic VO clients can reason about it.</div>
   <div><b>4–8 · inputParams</b> — the parameters the service expects. The client substitutes values for each <code>PARAM</code> to build the actual call.</div>
@@ -341,6 +305,50 @@ A **service descriptor** is metadata that ships *inside* the VOTable to tell a c
 
 <div class="text-xs mt-3 opacity-80">
 This is the <b>extension point</b> we use to advertise our auth-bearing transport service (the Product Streamer) — that's what justifies the divergence on the next slide.
+</div>
+
+
+---
+
+# The IVOA AuthVO bearer challenge
+
+<div class="text-sm">
+
+The IVOA **AuthVO** note (an extension of <a href="https://datatracker.ietf.org/doc/html/rfc6750">RFC 6750 Bearer Token Usage</a>) defines the contract that lets a generic VO client follow a 401 into an unknown identity provider:
+
+</div>
+
+```http {all|1|3-7}
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate:
+   ivoa_bearer
+   error="invalid_request",
+   error_description="Missing access token",
+   discovery_url="https://iam.skao.org/.well-known/openid-configuration"
+```
+
+<div class="text-sm mt-2">
+
+The key field is **`discovery_url`**: it points at an OIDC well-known document. From that one URL, the client can read the token endpoint, the supported grant types, the audience claim policy — everything it needs to obtain a valid Bearer token and retry the request.
+
+</div>
+
+<div class="grid grid-cols-3 gap-4 mt-4 text-xs">
+  <div class="border-l-4 border-[#E70068] pl-3 py-2">
+    <b>error</b> · error code from RFC 6750 — <code>invalid_request</code>, <code>invalid_token</code>, …
+  </div>
+  <div class="border-l-4 border-[#E70068] pl-3 py-2">
+    <b>error_description</b> · human-readable diagnostic for clients and operators
+  </div>
+  <div class="border-l-4 border-[#E70068] pl-3 py-2">
+    <b>discovery_url</b> · OIDC well-known endpoint for the IAM realm — the bootstrap target
+  </div>
+</div>
+
+<div class="mt-3 text-xs opacity-80">
+
+The whole talk hangs on this challenge. <b>Where</b> in our stack does it live? On the <b>Product Streamer</b> — that's where the bytes are, and that's where the audience boundary actually matters.
+
 </div>
 
 ---
@@ -361,7 +369,7 @@ Global services hold the federation state and discovery surface. Each SRCNet nod
 
 </div>
 
-<div class="mt-4 border-l-4 border-sky-500 bg-sky-50/40 dark:bg-sky-900/15 pl-4 py-3">
+<div class="mt-4 border-l-4 border-[#E70068] bg-[#E70068]/5 dark:bg-[#E70068]/8 pl-4 py-3">
   <div class="text-xs font-semibold uppercase opacity-70 mb-2">Global SRCNet APIs and Services</div>
   <div class="grid grid-cols-6 gap-2 text-xs">
     <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">Indigo IAM<br/><span class="opacity-65">OIDC</span></div>
@@ -441,13 +449,13 @@ sequenceDiagram
 
 <div class="text-sm">
 
-- DataLink is a **thin bridge**: 
-  - DMAPI returns the file locations on the RSEs federated through Rucio; 
-- DataLink formats the answer as a VOTable, and embeds the co-located Product Streamer as an `adhoc:service` descriptor (looked up via SCAPI).
+- **DataLink** is a **thin bridge**: 
+- queries DMAPI and returns the file locations on the RSEs federated through Rucio; 
+- Following datalink standards, it formats the answer as a VOTable, and embeds the co-located Product Streamer as an `adhoc:service` descriptor (looked up via SCAPI).
 
 PSAPI is the **streaming proxy**: 
-- it issues the two AuthVO challenges
-- validates the caller's token audience and data access permission with PAPI/AAPI
+- it issues the two AuthVO and Token Audience challenges
+- validates the caller's data access permission with PAPI/AAPI through token embedded groups
 - pulls bytes off the node-local RSE.
 
 </div>
@@ -477,7 +485,8 @@ async def links(
     return _render_file_response(...)
 ```
 
-One DID in. One VOTable out. The VOTable always carries a **`product-streamer` service descriptor** when a PSAPI is co-located with the storage area.
+- One DID in. One VOTable out. The VOTable always carries a **`product-streamer` service descriptor** when a PSAPI is co-located with the storage area.
+- Our dataset response is triggered by a query to DAMPI and thus Rucio and the confirmation that the product is a dataset made by multiple files.
 
 ---
 
@@ -485,7 +494,7 @@ One DID in. One VOTable out. The VOTable always carries a **`product-streamer` s
 
 <div class="text-sm">
 
-For every `locate`, DMAPI returns the active **Product Streamer** endpoint for the storage area (via SCAPI). DataLink surfaces it as a plain DataLink service descriptor — the exact mechanism from the IVOA standard.
+For every `locate`, DMAPI returns the active **Product Streamer** endpoint for the storage area (via SCAPI). DataLink surfaces it as a plain DataLink service descriptor — the exact mechanism from the **IVOA standard**.
 
 </div>
 
@@ -499,9 +508,9 @@ For every `locate`, DMAPI returns the active **Product Streamer** endpoint for t
 </RESOURCE>
 ```
 
-No `standardID` — it's a custom service. But the descriptor's shape is canonical: the client picks up `accessURL`, fills in `ID`, and POSTs to PSAPI with a Bearer token.
+No `standardID` — it's a custom service. But the descriptor's shape is canonical: the client picks up `accessURL`, fills in `ID`, and performs a naive call to the `product-streamear` which triggers the AuthVO challenges.
 
-A `#product-stream` row in the results table cross-references the descriptor so clients that prefer to discover services through the table see it there too.
+Datalink knows which product streamer is serving the data, though a call to `Site Capabilities API` (our SRCNet service catalogue) which serves all the co-located data services among which `product-streamear`.
 
 <div class="mt-3 text-xs opacity-80">
 This descriptor is also <b>where the audience boundary becomes visible</b>: the moment the client follows <code>accessURL</code>, it crosses into PSAPI — and PSAPI is the one that will issue the AuthVO challenge if the Bearer is missing or has the wrong audience.
@@ -663,7 +672,7 @@ The two challenges together let a <i>completely cold</i> client bootstrap into S
 
 <div class="flex gap-2">
   <div class="border-l-4 border-slate-400 pl-2"><div class="opacity-70">&lt; 10 MB/s</div><b>1 MiB</b></div>
-  <div class="border-l-4 border-sky-500 pl-2"><div class="opacity-70">10–99</div><b>4 MiB</b></div>
+  <div class="border-l-4 border-[#E70068] pl-2"><div class="opacity-70">10–99</div><b>4 MiB</b></div>
   <div class="border-l-4 border-emerald-500 pl-2"><div class="opacity-70">100–499</div><b>8 MiB</b></div>
   <div class="border-l-4 border-violet-500 pl-2"><div class="opacity-70">≥ 500</div><b>16 MiB</b></div>
 </div>
