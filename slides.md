@@ -130,6 +130,8 @@ layout: section
 
 # SKA datasets are not single files
 
+<div class="grid grid-cols-2 gap-8 items-center">
+
 <div class="text-sm">
 
 **SKAO will produce ~700 PB / year of science-ready data products.**
@@ -140,6 +142,12 @@ A *dataset* in SKA is rarely a single file: depending on the product type it can
 - Files are stored on **Rucio Storage Elements** (RSEs) — typically StoRM WebDAV
 - Identifiers are **Rucio DIDs** of the form `scope:name`
 - A *dataset* DID is a Rucio container whose constituents are *file* DIDs
+
+</div>
+
+<div class="flex items-center justify-center">
+  <img src="./images/Rucio.png" class="w-full max-h-72 object-contain" alt="Rucio" />
+</div>
 
 </div>
 ---
