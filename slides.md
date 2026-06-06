@@ -35,7 +35,7 @@ How a VO client bootstraps into SKA-IAM and walks away with the bytes
 
 <div class="mt-8 text-sm" style="color:#555555;">
 Michele Delli Veneri &nbsp;·&nbsp; SKA Observatory<br/>
-PI 30 Demo
+IVOA Interoperability Meeting — Strasbourg, 7 – 12 June 2026
 </div>
 
 <div class="mt-6 mx-auto max-w-2xl border-l-4 border-[#E70068] bg-[#E70068]/8 pl-4 py-2 text-xs text-left" style="color:#333333;">
@@ -82,41 +82,22 @@ Every SKAO byte sits behind an SRCNet IAM token
 
 <div>
 
-Every API in the SRCNet federation is locked behind **OIDC** authentication delivered by **SKA-IAM**. There is no anonymous read path to SKAO products.
+Every API in the SRCNet federation is locked behind **OIDC** authentication delivered by **SKA-IAM** our Indigo Identity and Access Management instance. 
+There is no anonymous read path to SKAO products.
 
 - **Authentication** is via short-lived OAuth2 access tokens
-- **Authorisation** is per-service: a user token must be **exchanged** for the service's audience (e.g. `product-streamer-api`) before it is accepted
-- The **audience boundary**:  all the token gated APIs in SRCNet accept only correctly scoped tokens. This limits the capacity of a token in case of a security breach. 
-Generic VO clients (TOPCAT, Aladin, pyVO) have no built-in knowledge of SKA-IAM. PSAPI bootstraps them with **two consecutive challenges**:
-1. **AuthVO challenge** — no token → 401 carrying `discovery_url`
-2. **Audience challenge** — wrong audience → 401 carrying `exchange_url`
+- **Audience boundary**:  all the token gated APIs in SRCNet accept only correctly scoped tokens. This limits the capacity of a token in case of a security breach. **Authorisation** is per-service: a user token must be **exchanged** for the service's audience (e.g. `product-streamer-api`) before it is accepted.
 
+Generic VO clients (TOPCAT, Aladin, pyVO) have no built-in knowledge of SKA-IAM. 
+<!---
+PSAPI bootstraps them with **two consecutive challenges**:
+#1. **AuthVO challenge** — no token → 401 carrying `discovery_url`
+2. **Audience challenge** — wrong audience → 401 carrying `exchange_url`
+-->
 </div>
 
-<div>
-
-```mermaid {scale: 0.4}
-sequenceDiagram
-  participant C as Client
-  participant PS as PSAPI
-  participant IAM as SKA-IAM
-  participant AAPI as AAPI
-  Note over C,PS: 1 · AuthVO challenge
-  C->>PS: POST (no token)
-  PS-->>C: 401 ivoa_bearer + discovery_url
-  Note over C,IAM: 2 · OIDC bootstrap
-  C->>IAM: GET discovery_url + DCR + device flow
-  IAM-->>C: raw IAM token
-  Note over C,AAPI: 3 · Audience challenge
-  C->>PS: POST (raw IAM token)
-  PS-->>C: 401 ivoa_bearer + exchange_url
-  C->>AAPI: GET exchange_url
-  AAPI-->>C: psapi-scoped token
-  Note over C,PS: 4 · Retry — success
-  C->>PS: POST + scoped Bearer
-  PS-->>C: data stream
-```
-
+<div class="flex items-center justify-center overflow-hidden">
+  <img src="./images/authvo-challenge.png" class="max-h-[420px] w-full object-contain" alt="Auth challenge problem diagram" />
 </div>
 </div>
 
@@ -150,10 +131,24 @@ A *dataset* in SKA is rarely a single file: depending on the product type it can
 </div>
 
 </div>
+
+
 ---
 layout: section
 ---
-# 3 · IVOA DataLink, briefly
+
+# 3 . The SRCNet Federation 
+
+---
+
+<div class="flex items-center justify-center">
+  <img src="./images/SRCNet.png" class="w-full h-full object-contain" alt="SRCNet" />
+</div>
+
+---
+layout: section
+---
+# 4 · IVOA DataLink, briefly
 
 `REC-DataLink-1.1` — 2023-12-15
 
@@ -363,74 +358,19 @@ The whole talk hangs on this challenge. <b>Where</b> in our stack does it live? 
 layout: section
 ---
 
-# 4 · The SRCNet implementation
+# 5 · The SRCNet implementation of the Auth Challenge
 
 How DataLink hands a VO client off to the auth challenge
 
 ---
 
-# SRCNet service federation
+# The Solution in a single slide
 
-<div class="mt-2 text-sm">
-
-Global services hold the federation state and discovery surface. Each SRCNet node exposes local access to storage through its Product Streamer and StoRM RSE.
-
-</div>
-
-<div class="mt-4 border-l-4 border-[#E70068] bg-[#E70068]/5 dark:bg-[#E70068]/8 pl-4 py-3">
-  <div class="text-xs font-semibold uppercase opacity-70 mb-2">Global SRCNet APIs and Services</div>
-  <div class="grid grid-cols-6 gap-2 text-xs">
-    <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">Indigo IAM<br/><span class="opacity-65">OIDC</span></div>
-    <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">TAP / ObsCore<br/><span class="opacity-65">discovery</span></div>
-    <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">Permission API<br/><span class="opacity-65">PAPI</span></div>
-    <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">Site Capabilities API<br/><span class="opacity-65">SCAPI</span></div>
-    <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">Data Management API<br/><span class="opacity-65">DMAPI</span></div>
-    <div class="border border-slate-300 dark:border-slate-600 px-2 py-2 text-center">Rucio<br/><span class="opacity-65">data replication</span></div>
-  </div>
-</div>
-
-<div class="mt-5 grid grid-cols-3 gap-4 text-xs">
-  <div class="border-l-4 border-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/15 pl-3 py-3">
-    <div class="font-semibold mb-2">SRCNet Node A</div>
-    <div class="grid gap-2">
-      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">DataLink</div>
-      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">Product Streamer <span class="opacity-65">(PSAPI)</span></div>
-      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">StoRM WebDAV RSE<br/><span class="opacity-65">registered in Rucio</span></div>
-    </div>
-  </div>
-
-  <div class="border-l-4 border-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/15 pl-3 py-3">
-    <div class="font-semibold mb-2">SRCNet Node B</div>
-    <div class="grid gap-2">
-      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">DataLink</div>
-      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">Product Streamer <span class="opacity-65">(PSAPI)</span></div>
-      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">XrootD RSE<br/><span class="opacity-65">registered in Rucio</span></div>
-    </div>
-  </div>
-
-  <div class="border-l-4 border-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/15 pl-3 py-3">
-    <div class="font-semibold mb-2">SRCNet Node C</div>
-    <div class="grid gap-2">
-      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">DataLink</div>
-      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">Product Streamer <span class="opacity-65">(PSAPI)</span></div>
-      <div class="border border-slate-300 dark:border-slate-600 px-2 py-2">StoRM WebDAV RSE<br/><span class="opacity-65">registered in Rucio</span></div>
-    </div>
-  </div>
-</div>
-
-<div class="mt-3 text-xs opacity-75">
-Every StoRM endpoint is a Rucio Storage Element (RSE); Rucio is the global catalogue that knows which RSE holds each file replica.
-</div>
-
----
-
-# The SKAO stack around DataLink
-
-<div class="grid grid-cols-[1.35fr_0.65fr] gap-6 items-start">
+<div class="grid grid-cols-[1.1fr_0.9fr] gap-6 items-start">
 
 <div>
 
-```mermaid {scale: 0.50}
+```mermaid {scale: 0.45}
 sequenceDiagram
   participant C as Client
   participant T as TAP / ObsCore
@@ -455,15 +395,15 @@ sequenceDiagram
 
 </div>
 
-<div class="text-sm">
+<div class="text-sm [&_li]:my-0 [&_ul]:my-1 [&_p]:my-0 leading-snug">
 
 - **DataLink** is a **thin bridge**: 
 - queries DMAPI and returns the file locations on the RSEs federated through Rucio; 
 - Following datalink standards, it formats the answer as a VOTable, and embeds the co-located Product Streamer as an `adhoc:service` descriptor (looked up via SCAPI).
 
-PSAPI is the **streaming proxy**: 
+- **Product Streamer** is the **streaming proxy**: 
 - it issues the two AuthVO and Token Audience challenges
-- validates the caller's data access permission with PAPI/AAPI through token embedded groups
+- validates the caller's data access permission with PAPI/AAPI (SRCNet Permission and AUthentication APIs) through token embedded groups
 - pulls bytes off the node-local RSE.
 
 </div>
@@ -493,8 +433,8 @@ async def links(
     return _render_file_response(...)
 ```
 
-- One DID in. One VOTable out. The VOTable always carries a **`product-streamer` service descriptor** when a PSAPI is co-located with the storage area.
-- Our dataset response is triggered by a query to DAMPI and thus Rucio and the confirmation that the product is a dataset made by multiple files.
+- One DID in. One VOTable out. The VOTable always carries a **`product-streamer` service descriptor** when a Product Streamer is co-located with the storage area.
+- Our dataset response is triggered when Rucio returns a Dataset type.
 
 ---
 
@@ -502,7 +442,7 @@ async def links(
 
 <div class="text-sm">
 
-For every `locate`, DMAPI returns the active **Product Streamer** endpoint for the storage area (via SCAPI). DataLink surfaces it as a plain DataLink service descriptor — the exact mechanism from the **IVOA standard**.
+For every `locate`, DMAPI returns the active **Product Streamer** endpoint for the storage area. DataLink surfaces it as a plain DataLink service descriptor — the exact mechanism from the **IVOA standard**.
 
 </div>
 
@@ -521,7 +461,7 @@ No `standardID` — it's a custom service. But the descriptor's shape is canonic
 Datalink knows which product streamer is serving the data, though a call to `Site Capabilities API` (our SRCNet service catalogue) which serves all the co-located data services among which `product-streamear`.
 
 <div class="mt-3 text-xs opacity-80">
-This descriptor is also <b>where the audience boundary becomes visible</b>: the moment the client follows <code>accessURL</code>, it crosses into PSAPI — and PSAPI is the one that will issue the AuthVO challenge if the Bearer is missing or has the wrong audience.
+This descriptor is also <b>where the audience boundary becomes visible</b>: the moment the client follows <code>accessURL</code>, it crosses into the Product Streamer which will issue the AuthVO challenge if the Bearer is missing or has the wrong audience.
 </div>
 
 ---
@@ -534,7 +474,7 @@ layout: section
 
 ---
 
-# What PSAPI does
+# Product Streamer Functionality
 
 <div class="grid grid-cols-2 gap-6 text-sm">
 
@@ -558,29 +498,26 @@ The route is gated by **two** independent challenges:
 
 <div>
 
-```python
-@product_router.post("/data/product")
-@handle_exceptions
-async def post_product(request: Request):
-    caller_token = request.headers.get("authorization", "")\
-        .removeprefix("Bearer ").strip()
-    if not caller_token:
-        raise MissingToken()  # 1st challenge: discovery_url
-
-    # parse body — VOTable XML or JSON, sniffed from Content-Type
-    ct = request.headers.get("content-type", "application/json")\
-        .split(";")[0].strip().lower()
-    products = _parse_products(ct, await request.body())
-
-    safe_paths = [_resolve_safe_path(p.path) for p in products]
-    if len(safe_paths) == 1 and os.path.isfile(safe_paths[0]):
-        return _single_file_response(
-            safe_paths[0], request.headers.get("Range"))
-
-    return StreamingResponse(
-        _stream_tar_archive(safe_paths),
-        media_type="application/x-tar",
-    )
+```mermaid {scale: 0.5}
+sequenceDiagram
+  participant C as Client
+  participant PS as PSAPI
+  participant IAM as SKA-IAM
+  participant AAPI as AAPI
+  Note over C,PS: 1 · AuthVO challenge
+  C->>PS: POST (no token)
+  PS-->>C: 401 ivoa_bearer + discovery_url
+  Note over C,IAM: 2 · OIDC bootstrap
+  C->>IAM: GET discovery_url + DCR + device flow
+  IAM-->>C: raw IAM token
+  Note over C,AAPI: 3 · Audience challenge
+  C->>PS: POST (raw IAM token)
+  PS-->>C: 401 ivoa_bearer + exchange_url
+  C->>AAPI: GET exchange_url
+  AAPI-->>C: psapi-scoped token
+  Note over C,PS: 4 · Retry — success
+  C->>PS: POST + scoped Bearer
+  PS-->>C: data stream
 ```
 
 </div>
@@ -609,7 +546,7 @@ A generic VO client that has never heard of SKA-IAM follows the `discovery_url`,
 - `device_authorization_endpoint` &nbsp;→&nbsp; **device flow** for interactive user authorisation
 - `token_endpoint` &nbsp;→&nbsp; poll for the issued access token
 
-At the end of step 1 the client holds a **raw IAM token** — but the audience is generic, not yet scoped to PSAPI.
+At the end of step 1 the client holds a **raw IAM token** — but the audience is generic, not yet scoped to the Product Streamer.
 
 ---
 
@@ -948,7 +885,7 @@ user_psapi_token = exchange_token(
 )
 ```
 
-`AAPI` (Audience API) verifies the caller's identity with PAPI and issues a **narrower token scoped to `product-streamer-api`**. The client is now ready to retry.
+`AAPI` (Audience API) verifies the caller's identity with PermissionAPI and issues a **narrower token scoped to `product-streamer-api`**. The client is now ready to retry.
 
 ---
 
