@@ -186,11 +186,11 @@ Each row in the response has **exactly one of** `access_url`, `service_def`, or 
 
 ---
 
-# A classic DataLink VOTable for a multi-file dataset
+# Standard DataLink response for a 1000-file SKA dataset
 
 <div class="text-sm">
 
-The canonical IVOA pattern for "a dataset is multiple files" — one row per related resource, all sharing the **same input ID**, distinguished by the `semantics` column. <span class="opacity-70">↓ scroll the snippet</span>
+Standard IVOA recursive pattern: `GET /links?ID=<dataset>` returns **one row per constituent file**, each row pointing to that file's own DataLink endpoint. The client must follow every link to get the actual download URL. <span class="opacity-70">↓ scroll the snippet</span>
 
 </div>
 
@@ -210,57 +210,108 @@ The canonical IVOA pattern for "a dataset is multiple files" — one row per rel
       <FIELD name="content_type"   datatype="char" arraysize="*" ucd="meta.code.mime"/>
       <FIELD name="content_length" datatype="long" ucd="phys.size;meta.file" unit="byte"/>
       <DATA><TABLEDATA>
-
-        <!-- Primary science file -->
-        <TR>
-          <TD>ivo://example.org/data?obs/2024/03/exposure_1234</TD>
-          <TD>https://example.org/data/obs_1234.fits</TD>
-          <TD/><TD/><TD>#this</TD>
-          <TD>Primary science file</TD>
-          <TD>application/fits</TD>
-          <TD>52428800</TD>
-        </TR>
-
-        <!-- Quick-look preview -->
-        <TR>
-          <TD>ivo://example.org/data?obs/2024/03/exposure_1234</TD>
-          <TD>https://example.org/data/obs_1234_preview.png</TD>
-          <TD/><TD/><TD>#preview</TD>
-          <TD>PNG quick-look</TD>
-          <TD>image/png</TD>
-          <TD>262144</TD>
-        </TR>
-
-        <!-- Weight map -->
-        <TR>
-          <TD>ivo://example.org/data?obs/2024/03/exposure_1234</TD>
-          <TD>https://example.org/data/obs_1234_weight.fits</TD>
-          <TD/><TD/><TD>#auxiliary</TD>
-          <TD>Weight map</TD>
-          <TD>application/fits</TD>
-          <TD>10485760</TD>
-        </TR>
-
-        <!-- Calibration product -->
-        <TR>
-          <TD>ivo://example.org/data?obs/2024/03/exposure_1234</TD>
-          <TD>https://example.org/data/obs_1234_calib.fits</TD>
-          <TD/><TD/><TD>#calibration</TD>
-          <TD>Calibration applied to this exposure</TD>
-          <TD>application/fits</TD>
-          <TD>1048576</TD>
-        </TR>
-
-        <!-- Progenitor / input dataset -->
-        <TR>
-          <TD>ivo://example.org/data?obs/2024/03/exposure_1234</TD>
-          <TD>https://example.org/datalink/links?ID=ivo://example.org/raw/2024/03/exp_1234_L0</TD>
-          <TD/><TD/><TD>#progenitor</TD>
-          <TD>Level-0 input dataset (recursive DataLink)</TD>
-          <TD>application/x-votable+xml;content=datalink</TD>
-          <TD/>
-        </TR>
-
+        <!-- 1000 rows — one per constituent MS file; client must resolve each one -->
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0001.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0001 of 1000 — ska_mid_vlbi_obs5678_scan_0001.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0002.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0002 of 1000 — ska_mid_vlbi_obs5678_scan_0002.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0003.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0003 of 1000 — ska_mid_vlbi_obs5678_scan_0003.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0004.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0004 of 1000 — ska_mid_vlbi_obs5678_scan_0004.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0005.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0005 of 1000 — ska_mid_vlbi_obs5678_scan_0005.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0006.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0006 of 1000 — ska_mid_vlbi_obs5678_scan_0006.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0007.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0007 of 1000 — ska_mid_vlbi_obs5678_scan_0007.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0008.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0008 of 1000 — ska_mid_vlbi_obs5678_scan_0008.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0009.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0009 of 1000 — ska_mid_vlbi_obs5678_scan_0009.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0010.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0010 of 1000 — ska_mid_vlbi_obs5678_scan_0010.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0011.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0011 of 1000 — ska_mid_vlbi_obs5678_scan_0011.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0012.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0012 of 1000 — ska_mid_vlbi_obs5678_scan_0012.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0013.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0013 of 1000 — ska_mid_vlbi_obs5678_scan_0013.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0014.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0014 of 1000 — ska_mid_vlbi_obs5678_scan_0014.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0015.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0015 of 1000 — ska_mid_vlbi_obs5678_scan_0015.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0016.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0016 of 1000 — ska_mid_vlbi_obs5678_scan_0016.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0017.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0017 of 1000 — ska_mid_vlbi_obs5678_scan_0017.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0018.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0018 of 1000 — ska_mid_vlbi_obs5678_scan_0018.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0019.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0019 of 1000 — ska_mid_vlbi_obs5678_scan_0019.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0020.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0020 of 1000 — ska_mid_vlbi_obs5678_scan_0020.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0021.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0021 of 1000 — ska_mid_vlbi_obs5678_scan_0021.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0022.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0022 of 1000 — ska_mid_vlbi_obs5678_scan_0022.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0023.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0023 of 1000 — ska_mid_vlbi_obs5678_scan_0023.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0024.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0024 of 1000 — ska_mid_vlbi_obs5678_scan_0024.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0025.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0025 of 1000 — ska_mid_vlbi_obs5678_scan_0025.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0026.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0026 of 1000 — ska_mid_vlbi_obs5678_scan_0026.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0027.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0027 of 1000 — ska_mid_vlbi_obs5678_scan_0027.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0028.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0028 of 1000 — ska_mid_vlbi_obs5678_scan_0028.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0029.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0029 of 1000 — ska_mid_vlbi_obs5678_scan_0029.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0030.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0030 of 1000 — ska_mid_vlbi_obs5678_scan_0030.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0031.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0031 of 1000 — ska_mid_vlbi_obs5678_scan_0031.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0032.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0032 of 1000 — ska_mid_vlbi_obs5678_scan_0032.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0033.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0033 of 1000 — ska_mid_vlbi_obs5678_scan_0033.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0034.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0034 of 1000 — ska_mid_vlbi_obs5678_scan_0034.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0035.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0035 of 1000 — ska_mid_vlbi_obs5678_scan_0035.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0036.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0036 of 1000 — ska_mid_vlbi_obs5678_scan_0036.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0037.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0037 of 1000 — ska_mid_vlbi_obs5678_scan_0037.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0038.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0038 of 1000 — ska_mid_vlbi_obs5678_scan_0038.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0039.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0039 of 1000 — ska_mid_vlbi_obs5678_scan_0039.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0040.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0040 of 1000 — ska_mid_vlbi_obs5678_scan_0040.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0041.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0041 of 1000 — ska_mid_vlbi_obs5678_scan_0041.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0042.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0042 of 1000 — ska_mid_vlbi_obs5678_scan_0042.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0043.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0043 of 1000 — ska_mid_vlbi_obs5678_scan_0043.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0044.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0044 of 1000 — ska_mid_vlbi_obs5678_scan_0044.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0045.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0045 of 1000 — ska_mid_vlbi_obs5678_scan_0045.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0046.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0046 of 1000 — ska_mid_vlbi_obs5678_scan_0046.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0047.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0047 of 1000 — ska_mid_vlbi_obs5678_scan_0047.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0048.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0048 of 1000 — ska_mid_vlbi_obs5678_scan_0048.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0049.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0049 of 1000 — ska_mid_vlbi_obs5678_scan_0049.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0050.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0050 of 1000 — ska_mid_vlbi_obs5678_scan_0050.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0051.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0051 of 1000 — ska_mid_vlbi_obs5678_scan_0051.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0052.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0052 of 1000 — ska_mid_vlbi_obs5678_scan_0052.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0053.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0053 of 1000 — ska_mid_vlbi_obs5678_scan_0053.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0054.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0054 of 1000 — ska_mid_vlbi_obs5678_scan_0054.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0055.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0055 of 1000 — ska_mid_vlbi_obs5678_scan_0055.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0056.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0056 of 1000 — ska_mid_vlbi_obs5678_scan_0056.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0057.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0057 of 1000 — ska_mid_vlbi_obs5678_scan_0057.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0058.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0058 of 1000 — ska_mid_vlbi_obs5678_scan_0058.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0059.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0059 of 1000 — ska_mid_vlbi_obs5678_scan_0059.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0060.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0060 of 1000 — ska_mid_vlbi_obs5678_scan_0060.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0061.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0061 of 1000 — ska_mid_vlbi_obs5678_scan_0061.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0062.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0062 of 1000 — ska_mid_vlbi_obs5678_scan_0062.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0063.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0063 of 1000 — ska_mid_vlbi_obs5678_scan_0063.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0064.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0064 of 1000 — ska_mid_vlbi_obs5678_scan_0064.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0065.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0065 of 1000 — ska_mid_vlbi_obs5678_scan_0065.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0066.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0066 of 1000 — ska_mid_vlbi_obs5678_scan_0066.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0067.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0067 of 1000 — ska_mid_vlbi_obs5678_scan_0067.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0068.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0068 of 1000 — ska_mid_vlbi_obs5678_scan_0068.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0069.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0069 of 1000 — ska_mid_vlbi_obs5678_scan_0069.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0070.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0070 of 1000 — ska_mid_vlbi_obs5678_scan_0070.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0071.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0071 of 1000 — ska_mid_vlbi_obs5678_scan_0071.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0072.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0072 of 1000 — ska_mid_vlbi_obs5678_scan_0072.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0073.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0073 of 1000 — ska_mid_vlbi_obs5678_scan_0073.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0074.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0074 of 1000 — ska_mid_vlbi_obs5678_scan_0074.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0075.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0075 of 1000 — ska_mid_vlbi_obs5678_scan_0075.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0076.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0076 of 1000 — ska_mid_vlbi_obs5678_scan_0076.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0077.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0077 of 1000 — ska_mid_vlbi_obs5678_scan_0077.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0078.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0078 of 1000 — ska_mid_vlbi_obs5678_scan_0078.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0079.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0079 of 1000 — ska_mid_vlbi_obs5678_scan_0079.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0080.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0080 of 1000 — ska_mid_vlbi_obs5678_scan_0080.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0081.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0081 of 1000 — ska_mid_vlbi_obs5678_scan_0081.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0082.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0082 of 1000 — ska_mid_vlbi_obs5678_scan_0082.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0083.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0083 of 1000 — ska_mid_vlbi_obs5678_scan_0083.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0084.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0084 of 1000 — ska_mid_vlbi_obs5678_scan_0084.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0085.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0085 of 1000 — ska_mid_vlbi_obs5678_scan_0085.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0086.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0086 of 1000 — ska_mid_vlbi_obs5678_scan_0086.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0087.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0087 of 1000 — ska_mid_vlbi_obs5678_scan_0087.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0088.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0088 of 1000 — ska_mid_vlbi_obs5678_scan_0088.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0089.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0089 of 1000 — ska_mid_vlbi_obs5678_scan_0089.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0090.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0090 of 1000 — ska_mid_vlbi_obs5678_scan_0090.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0091.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0091 of 1000 — ska_mid_vlbi_obs5678_scan_0091.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0092.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0092 of 1000 — ska_mid_vlbi_obs5678_scan_0092.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0093.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0093 of 1000 — ska_mid_vlbi_obs5678_scan_0093.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0094.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0094 of 1000 — ska_mid_vlbi_obs5678_scan_0094.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0095.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0095 of 1000 — ska_mid_vlbi_obs5678_scan_0095.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0096.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0096 of 1000 — ska_mid_vlbi_obs5678_scan_0096.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0097.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0097 of 1000 — ska_mid_vlbi_obs5678_scan_0097.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0098.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0098 of 1000 — ska_mid_vlbi_obs5678_scan_0098.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0099.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0099 of 1000 — ska_mid_vlbi_obs5678_scan_0099.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <TR><TD>ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678</TD><TD>https://datalink.srcnet.skao.int/links?ID=ivo://skao.int/rucio?skao:ska_mid_vlbi_obs5678_scan_0100.ms</TD><TD/><TD/><TD>#progenitor</TD><TD>Scan 0100 of 1000 — ska_mid_vlbi_obs5678_scan_0100.ms</TD><TD>application/x-votable+xml;content=datalink</TD><TD/></TR>
+        <!-- ... × 900 more rows: scan_0101.ms → scan_1000.ms ... -->
       </TABLEDATA></DATA>
     </TABLE>
   </RESOURCE>
@@ -270,7 +321,13 @@ The canonical IVOA pattern for "a dataset is multiple files" — one row per rel
 </div>
 
 <div class="mt-2 text-xs opacity-80">
-One dataset ID → many rows. The same <code>ID</code> column appears in every <code>TR</code>; the <code>semantics</code> column carries the role from the core vocabulary (<code>#this</code>, <code>#preview</code>, <code>#auxiliary</code>, <code>#calibration</code>, <code>#progenitor</code>, …).
+One dataset ID → <b>1000 rows</b>, every row a recursive DataLink URL. To get a single download URL the client must issue <b>1001 HTTP requests</b>: 1 for the dataset + 1 per constituent file. The <code>content_type</code> <code>application/x-votable+xml;content=datalink</code> signals each link must be resolved again.
+</div>
+
+---
+
+<div class="flex items-center justify-center h-full">
+  <img src="./images/ddos.png" class="max-h-[520px] w-full object-contain" alt="1000 DataLink requests = DDoS" />
 </div>
 
 ---
