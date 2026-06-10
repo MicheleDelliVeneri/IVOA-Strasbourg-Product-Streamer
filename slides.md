@@ -119,7 +119,6 @@ layout: section
 
 A *dataset* in SKA is rarely a single file: depending on the product type it can hold **hundreds to thousands** of files — typically **FITS** images, weights, primary-beam and metadata sidecars, or **Measurement Set v2 (MSv2)** directory trees for visibilities.
 
-- **Discovery** is via TAP / ObsCore — query result already includes the DataLink URL
 - Files are stored on **Rucio Storage Elements** (RSEs) — typically StoRM WebDAV
 - Identifiers are **Rucio DIDs** of the form `scope:name`
 - A *dataset* DID is a Rucio container whose constituents are *file* DIDs
