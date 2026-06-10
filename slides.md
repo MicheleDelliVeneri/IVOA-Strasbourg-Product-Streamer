@@ -818,6 +818,21 @@ layout: section
 `demo/notebooks/user_flow_demo.py` — dataset route, cold-start client
 
 ---
+layout: center
+---
+
+<div class="flex flex-col items-center gap-4">
+  <h2 class="text-2xl font-bold">Demo Recording</h2>
+  <iframe
+    src="https://drive.google.com/file/d/1zQgq_6fMZqgU4WYcXy47GYU63yi1EZWu/preview"
+    width="840"
+    height="480"
+    allow="autoplay"
+    class="rounded-lg shadow-xl"
+  ></iframe>
+</div>
+
+---
 
 # Step 1 — Query DataLink for the dataset
 
